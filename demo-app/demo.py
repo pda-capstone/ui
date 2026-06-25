@@ -5,7 +5,7 @@ PDA GTK Demo
 
 A minimal GTK4 reference application for testing the Wayland UI stack.
 This demo is intended to verify that a GTK application can run under
-Weston and respond to basic touch/click input.
+Phosh/Phoc and respond to basic touch/click input.
 """
 
 import gi
@@ -14,15 +14,8 @@ import gi
 gi.require_version("Gtk", "4.0")
 from gi.repository import Gtk, Gio
 
-
-def on_button_clicked(button, status_label):
-    """
-    Callback for the test button.
-
-    This is used to verify that pointer/touch input reaches the GTK
-    application correctly through the Wayland compositor.
-    """
-    status_label.set_text("Button clicked!")
+from daemon_status_panel import create_daemon_status_panel
+from click_test_panel import create_click_test_panel
 
 
 def activate(app):
@@ -41,7 +34,7 @@ def activate(app):
     window.set_default_size(720, 720)
 
     # For final device or kiosk-style deployment, fullscreen behavior may be
-    # controlled by Weston/compositor configuration. This line can also be
+    # controlled by compositor configuration. This line can also be
     # enabled during testing if fullscreen behavior needs to be verified.
     # window.fullscreen()
 
@@ -49,45 +42,23 @@ def activate(app):
     # GTK will adapt the child widgets to the available window size.
     box = Gtk.Box(
         orientation=Gtk.Orientation.VERTICAL,
-        spacing=20
+        spacing=12
     )
-    box.set_margin_top(30)
-    box.set_margin_bottom(30)
-    box.set_margin_start(24)
-    box.set_margin_end(24)
+    box.set_margin_top(18)
+    box.set_margin_bottom(18)
+    box.set_margin_start(20)
+    box.set_margin_end(20)
     box.set_vexpand(True)
     box.set_hexpand(True)
 
     # Demo title shown at the top of the application.
     title = Gtk.Label(label="Pocket Distro Alpha")
-    title.add_css_class("title-1")
-
-    # Status label used to show whether the demo is running and whether
-    # user input has been received.
-    status_label = Gtk.Label(
-        label="Weston + GTK demo is running"
-    )
-
-    # Large test button for touch/click interaction.
-    button = Gtk.Button(
-        label="Test Touch / Click"
-    )
-    button.set_vexpand(True)
-    button.set_hexpand(True)
-
-
-    # Connect the button's clicked signal to the callback function.
-    # The status_label is passed as user data so the callback can update it.
-    button.connect(
-        "clicked",
-        on_button_clicked,
-        status_label
-    )
+    title.add_css_class("title-2")
 
     # Add widgets to the vertical layout in display order.
     box.append(title)
-    box.append(status_label)
-    box.append(button)
+    box.append(create_daemon_status_panel())
+    box.append(create_click_test_panel())
 
     # Set the layout container as the window content and show the window.
     window.set_child(box)
