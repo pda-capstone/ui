@@ -1,3 +1,8 @@
+# module_state.py
+# Stores temporary demo module state and builds PDA status text.
+# Owner: Jiesui
+# Last updated: June 2026
+
 """
 PDA module state helpers.
 
@@ -6,9 +11,8 @@ module-related status text. Later, this can be replaced or extended with
 real data from the hot-swap daemon through D-Bus.
 """
 
-# Demo data used by the UI until real daemon / D-Bus data is connected.
-# The module count shown in the status bar is calculated from this list.
-
+# Demo data stays separate from the GTK widgets so the UI can later switch
+# from placeholders to daemon / D-Bus data without rewriting panel layout.
 DAEMON_STATUS = "Running (Testing)"
 
 MODULES = [

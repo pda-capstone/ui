@@ -1,3 +1,8 @@
+# daemon_status_panel.py
+# Builds the PDA GTK daemon/module status panel and expand behavior.
+# Owner: Jiesui
+# Last updated: June 2026
+
 """
 Daemon / module status panel UI for the PDA GTK demo.
 
@@ -49,13 +54,14 @@ def create_daemon_status_panel():
     )
     panel.set_hexpand(True)
 
-    # Clickable app-level status bar.
+    # A button makes the status bar easy to trigger with touch input.
     status_bar = Gtk.Button(
         label=get_status_bar_text(expanded=False)
     )
     status_bar.set_hexpand(True)
 
-    # Detailed status panel shown when the status bar is expanded.
+    # The details stay in a separate box so D-Bus-backed rows can be added
+    # later without changing the expand/collapse behavior.
     status_details = Gtk.Box(
         orientation=Gtk.Orientation.VERTICAL,
         spacing=6
@@ -66,7 +72,7 @@ def create_daemon_status_panel():
             create_left_aligned_label(line)
         )
 
-    # Revealer provides the expand/collapse behavior.
+    # Revealer gives the status panel an explicit expand/collapse transition.
     status_revealer = Gtk.Revealer()
     status_revealer.set_transition_type(
         Gtk.RevealerTransitionType.SLIDE_DOWN

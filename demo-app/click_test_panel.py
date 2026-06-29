@@ -1,3 +1,8 @@
+# click_test_panel.py
+# Builds the PDA GTK touch/click test panel and click counter behavior.
+# Owner: Jiesui
+# Last updated: June 2026
+
 """
 Touch / click test panel UI for the PDA GTK demo.
 
@@ -30,17 +35,18 @@ def create_click_test_panel():
     )
     panel.set_hexpand(True)
 
-    # Status label used to show whether user input has been received.
+    # The label gives immediate feedback during touchscreen input checks.
     status_label = Gtk.Label(
         label="Click count: 0"
     )
 
-    # Mutable state used by the clicked callback.
+    # A dictionary keeps callback state mutable without adding a custom class
+    # for this small demo panel.
     click_state = {
         "count": 0
     }
 
-    # Large test button for touch/click interaction.
+    # The large target makes touch testing practical on the small PDA screen.
     button = Gtk.Button(
         label="Test Touch / Click"
     )

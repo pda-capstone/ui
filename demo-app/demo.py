@@ -1,4 +1,8 @@
 #!/usr/bin/env python3
+# demo.py
+# Creates the main GTK demo application window for PDA UI testing.
+# Owner: Jiesui
+# Last updated: June 2026
 
 """
 PDA GTK Demo
@@ -28,18 +32,15 @@ def activate(app):
     window = Gtk.ApplicationWindow(application=app)
     window.set_title("PDA GTK Demo")
 
-    # Development preview size.
-    # This is not a fixed display size. The Wayland compositor may resize
-    # or fullscreen the application depending on the target environment.
+    # This preview size keeps VM testing consistent without assuming the
+    # final compositor-managed device resolution.
     window.set_default_size(720, 720)
 
-    # For final device or kiosk-style deployment, fullscreen behavior may be
-    # controlled by compositor configuration. This line can also be
-    # enabled during testing if fullscreen behavior needs to be verified.
-    # window.fullscreen()
+    # Final fullscreen behavior should be configured by the compositor so
+    # the same app can run in both windowed VM tests and device deployment.
 
-    # Main vertical layout container.
-    # GTK will adapt the child widgets to the available window size.
+    # GTK's vertical box keeps the demo readable as the compositor resizes
+    # the window or the app moves between VM and target-device environments.
     box = Gtk.Box(
         orientation=Gtk.Orientation.VERTICAL,
         spacing=12
@@ -51,11 +52,12 @@ def activate(app):
     box.set_vexpand(True)
     box.set_hexpand(True)
 
-    # Demo title shown at the top of the application.
+    # The title identifies the reference UI during compositor testing.
     title = Gtk.Label(label="Pocket Distro Alpha")
     title.add_css_class("title-2")
 
-    # Add widgets to the vertical layout in display order.
+    # Keep the status panel above the input test so system state is visible
+    # before running touch/click verification.
     box.append(title)
     box.append(create_daemon_status_panel())
     box.append(create_click_test_panel())
@@ -70,8 +72,7 @@ def main():
     Application entry point.
     """
     app = Gtk.Application(
-        # Reverse-domain application ID.
-        # This helps identify the application in desktop/session systems.
+        # Reverse-domain application IDs identify GTK apps in session tools.
         application_id="edu.pda.gtkdemo",
         flags=Gio.ApplicationFlags.DEFAULT_FLAGS
     )
