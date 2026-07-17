@@ -17,6 +17,7 @@ from gi.repository import Gtk
 
 from power_benchmark_panel import create_power_benchmark_panel
 from settings_overlay import create_settings_controls
+from power_backend import PowerBackend
 
 
 def create_left_aligned_label(text):
@@ -84,7 +85,7 @@ def create_diagnostics_header(diagnostics_revealer):
     return header
 
 
-def create_diagnostics_content():
+def create_diagnostics_content(power_backend):
     """
     Create the scrollable diagnostics tool content.
     """
@@ -102,7 +103,7 @@ def create_diagnostics_content():
 
     content_box.append(intro_label)
     content_box.append(Gtk.Separator())
-    content_box.append(create_power_benchmark_panel())
+    content_box.append(create_power_benchmark_panel(power_backend))
 
     scrolled_window = Gtk.ScrolledWindow()
     scrolled_window.set_policy(
@@ -116,7 +117,7 @@ def create_diagnostics_content():
     return scrolled_window
 
 
-def create_diagnostics_panel(diagnostics_revealer):
+def create_diagnostics_panel(diagnostics_revealer, power_backend):
     """
     Build the full-screen diagnostics overlay panel.
     """
@@ -148,14 +149,14 @@ def create_diagnostics_panel(diagnostics_revealer):
     panel_box.append(
         create_diagnostics_header(diagnostics_revealer)
     )
-    panel_box.append(create_diagnostics_content())
+    panel_box.append(create_diagnostics_content(power_backend))
 
     background_box.append(panel_box)
 
     return background_box
 
 
-def create_diagnostics_revealer():
+def create_diagnostics_revealer(power_backend):
     """
     Create the hidden diagnostics overlay revealer.
     """
@@ -171,7 +172,7 @@ def create_diagnostics_revealer():
     diagnostics_revealer.set_reveal_child(False)
     diagnostics_revealer.set_can_target(False)
     diagnostics_revealer.set_child(
-        create_diagnostics_panel(diagnostics_revealer)
+        create_diagnostics_panel(diagnostics_revealer, power_backend)
     )
     diagnostics_revealer.connect(
         "notify::child-revealed",
@@ -222,18 +223,21 @@ def create_bottom_action_row(
     return button_row
 
 
-def create_diagnostics_overlay(main_content):
+def create_diagnostics_overlay(main_content, power_backend=None):
     """
     Wrap the main content with diagnostics and settings overlays.
     """
     root_overlay = Gtk.Overlay()
-    root_overlay.set_halign(Gtk.Align.FILL)
-    root_overlay.set_valign(Gtk.Align.FILL)
     root_overlay.set_hexpand(True)
     root_overlay.set_vexpand(True)
     root_overlay.set_child(main_content)
 
-    diagnostics_revealer = create_diagnostics_revealer()
+    if power_backend is None:
+        power_backend = PowerBackend()
+
+    diagnostics_revealer = create_diagnostics_revealer(
+        power_backend
+    )
 
     (
         settings_revealer,

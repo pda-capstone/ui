@@ -14,22 +14,44 @@ measurement script interface is finalized, the Start Benchmark button
 validates the selected settings and displays a placeholder status.
 """
 
+from pathlib import Path
+
 import gi
 
 gi.require_version("Gtk", "4.0")
 from gi.repository import Gtk
 
+from power_backend import BenchmarkRequest
+
 
 GOVERNOR_OPTIONS = (
-    "schedutil",
-    "ondemand",
-    "powersave",
+    {
+        "id": "schedutil",
+        "label": "schedutil",
+    },
+    {
+        "id": "ondemand",
+        "label": "ondemand",
+    },
+    {
+        "id": "powersave",
+        "label": "powersave",
+    },
 )
 
 WORKLOAD_OPTIONS = (
-    "Idle / Display Off",
-    "Active / Display On",
-    "Peripheral Active",
+    {
+        "id": "idle",
+        "label": "Idle / Display Off",
+    },
+    {
+        "id": "display",
+        "label": "Active / Display On",
+    },
+    {
+        "id": "peripheral",
+        "label": "Peripheral Active",
+    },
 )
 
 DEFAULT_DURATION_SECONDS = 60
@@ -51,9 +73,14 @@ def create_left_aligned_label(text):
 
 def create_dropdown(options):
     """
-    Create a drop-down containing the supplied text options.
+    Create a drop-down containing the supplied option labels.
     """
-    option_model = Gtk.StringList.new(list(options))
+    option_labels = [
+        option["label"]
+        for option in options
+    ]
+
+    option_model = Gtk.StringList.new(option_labels)
     dropdown = Gtk.DropDown.new(option_model, None)
     dropdown.set_hexpand(True)
     dropdown.set_halign(Gtk.Align.FILL)
@@ -61,16 +88,16 @@ def create_dropdown(options):
     return dropdown
 
 
-def get_selected_dropdown_text(dropdown):
+def get_selected_option_id(dropdown, options):
     """
-    Return the currently selected text from a GTK drop-down.
+    Return the stable identifier of the selected option.
     """
-    selected_item = dropdown.get_selected_item()
+    selected_index = dropdown.get_selected()
 
-    if selected_item is None:
+    if selected_index >= len(options):
         return ""
 
-    return selected_item.get_string()
+    return options[selected_index]["id"]
 
 
 def normalize_output_filename(output_filename):
@@ -87,13 +114,24 @@ def normalize_output_filename(output_filename):
     return normalized_filename
 
 
-def validate_benchmark_settings(duration_seconds, output_filename):
+def validate_benchmark_settings(
+    governor_id,
+    workload_id,
+    duration_seconds,
+    output_filename,
+):
     """
     Validate the user-provided benchmark settings.
 
     Raises:
         ValueError: If a setting cannot be used for a benchmark.
     """
+    if not governor_id:
+        raise ValueError("A CPU governor must be selected.")
+
+    if not workload_id:
+        raise ValueError("A workload must be selected.")
+
     if duration_seconds < MINIMUM_DURATION_SECONDS:
         raise ValueError(
             "Duration must be at least "
@@ -117,6 +155,7 @@ def validate_benchmark_settings(duration_seconds, output_filename):
 
 def on_start_benchmark_clicked(
     _button,
+    power_backend,
     governor_dropdown,
     workload_dropdown,
     duration_input,
@@ -124,10 +163,16 @@ def on_start_benchmark_clicked(
     status_label,
 ):
     """
-    Validate the benchmark configuration and update placeholder status.
+    Validate and submit one benchmark request.
     """
-    governor_name = get_selected_dropdown_text(governor_dropdown)
-    workload_name = get_selected_dropdown_text(workload_dropdown)
+    governor_id = get_selected_option_id(
+        governor_dropdown,
+        GOVERNOR_OPTIONS,
+    )
+    workload_id = get_selected_option_id(
+        workload_dropdown,
+        WORKLOAD_OPTIONS,
+    )
     duration_seconds = duration_input.get_value_as_int()
     output_filename = normalize_output_filename(
         output_entry.get_text()
@@ -135,22 +180,51 @@ def on_start_benchmark_clicked(
 
     try:
         validate_benchmark_settings(
+            governor_id,
+            workload_id,
             duration_seconds,
             output_filename,
         )
     except ValueError as error:
-        status_label.set_text(f"Status: Error — {error}")
+        status_label.set_text(
+            f"Status: Error — {error}"
+        )
         return
 
     output_entry.set_text(output_filename)
 
+    benchmark_request = BenchmarkRequest(
+        governor=governor_id,
+        workload=workload_id,
+        duration_seconds=duration_seconds,
+        output_path=Path(output_filename),
+    )
+
+    if not power_backend.is_available():
+        status_label.set_text(
+            "Status: Configuration is valid.\n"
+            f"Governor: {benchmark_request.governor}\n"
+            f"Workload: {benchmark_request.workload}\n"
+            "Duration: "
+            f"{benchmark_request.duration_seconds} seconds\n"
+            f"Output: {benchmark_request.output_path}\n\n"
+            f"{power_backend.get_unavailable_reason()}\n"
+            "No benchmark was started."
+        )
+        return
+
+    try:
+        power_backend.start_benchmark(
+            benchmark_request
+        )
+    except RuntimeError as error:
+        status_label.set_text(
+            f"Status: Could not start benchmark — {error}"
+        )
+        return
+
     status_label.set_text(
-        "Status: Benchmark configuration is ready.\n"
-        f"Governor: {governor_name}\n"
-        f"Workload: {workload_name}\n"
-        f"Duration: {duration_seconds} seconds\n"
-        f"Output: {output_filename}\n"
-        "The benchmark runner is not connected yet."
+        "Status: Benchmark started."
     )
 
 
@@ -232,6 +306,7 @@ def create_benchmark_form(
 
 
 def create_start_button(
+    power_backend,
     governor_dropdown,
     workload_dropdown,
     duration_input,
@@ -239,15 +314,21 @@ def create_start_button(
     status_label,
 ):
     """
-    Create the button used to start a benchmark.
+    Create the benchmark action button.
     """
-    start_button = Gtk.Button(label="Start Benchmark")
+    if power_backend.is_available():
+        button_label = "Start Benchmark"
+    else:
+        button_label = "Validate Configuration"
+
+    start_button = Gtk.Button(label=button_label)
     start_button.set_halign(Gtk.Align.CENTER)
     start_button.set_margin_top(8)
 
     start_button.connect(
         "clicked",
         on_start_benchmark_clicked,
+        power_backend,
         governor_dropdown,
         workload_dropdown,
         duration_input,
@@ -258,7 +339,7 @@ def create_start_button(
     return start_button
 
 
-def create_power_benchmark_panel():
+def create_power_benchmark_panel(power_backend):
     """
     Create the complete power benchmark configuration panel.
     """
@@ -292,6 +373,7 @@ def create_power_benchmark_panel():
     )
 
     start_button = create_start_button(
+        power_backend,
         governor_dropdown,
         workload_dropdown,
         duration_input,

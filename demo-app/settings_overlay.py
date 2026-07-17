@@ -91,12 +91,12 @@ def get_selected_power_mode(mode_buttons):
 
 def update_loaded_mode_status(status_label, power_mode):
     """
-    Display the currently loaded power mode.
+    Display the currently configured power mode.
     """
     option = get_power_mode_option(power_mode)
 
     status_label.set_text(
-        f"Current mode: {option['label']} "
+        f"Configured mode: {option['label']} "
         f"({option['governor']})"
     )
 
@@ -175,10 +175,10 @@ def on_save_settings_clicked(
         return
 
     status_label.set_text(
-        f"Saved: {option['label']} "
+        f"Saved configuration: {option['label']} "
         f"({option['governor']})\n"
         f"Config: {settings_path}\n"
-        "Power controller is not connected yet."
+        "The operating system governor was not changed."
     )
 
 
@@ -291,7 +291,7 @@ def create_settings_content():
     )
 
     status_label = create_left_aligned_label(
-        "Current mode: Default (schedutil)"
+        "Configured mode: Default (schedutil)"
     )
     status_label.set_selectable(True)
 
