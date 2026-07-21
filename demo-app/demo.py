@@ -2,7 +2,7 @@
 # demo.py
 # Creates the main GTK demo application window for PDA UI testing.
 # Owner: Jiesui
-# Last updated: June 2026
+# Last updated: July 2026
 
 """
 PDA GTK Demo
@@ -20,6 +20,7 @@ from gi.repository import Gtk, Gio
 
 from daemon_status_panel import create_daemon_status_panel
 from click_test_panel import create_click_test_panel
+from diagnostics_overlay import create_diagnostics_overlay
 
 
 def activate(app):
@@ -63,7 +64,7 @@ def activate(app):
     box.append(create_click_test_panel())
 
     # Set the layout container as the window content and show the window.
-    window.set_child(box)
+    window.set_child(create_diagnostics_overlay(box))
     window.present()
 
 
