@@ -14,8 +14,9 @@ import math
 
 import gi
 
+gi.require_version("cairo", "1.0")
 gi.require_version("Gtk", "4.0")
-from gi.repository import GLib, Gtk
+from gi.repository import GLib, Gtk, cairo
 
 
 RIPPLE_DURATION_SECONDS = 0.6
