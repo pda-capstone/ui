@@ -21,9 +21,10 @@ from gi.repository import Gtk, Gio
 from app.daemon_status_panel import create_daemon_status_panel
 from app.click_test_panel import create_click_test_panel
 from app.diagnostics_overlay import create_diagnostics_overlay
+from app.power_backend import PowerBackend
 
 
-def activate(app):
+def activate(app, power_backend):
     """
     Create and present the main application window.
 
@@ -44,7 +45,7 @@ def activate(app):
     # the window or the app moves between VM and target-device environments.
     box = Gtk.Box(
         orientation=Gtk.Orientation.VERTICAL,
-        spacing=12
+        spacing=12,
     )
     box.set_margin_top(18)
     box.set_margin_bottom(18)
@@ -64,7 +65,12 @@ def activate(app):
     box.append(create_click_test_panel())
 
     # Set the layout container as the window content and show the window.
-    window.set_child(create_diagnostics_overlay(box))
+    window.set_child(
+        create_diagnostics_overlay(
+            box,
+            power_backend,
+        )
+    )
     window.present()
 
 
@@ -75,10 +81,16 @@ def main():
     app = Gtk.Application(
         # Reverse-domain application IDs identify GTK apps in session tools.
         application_id="edu.pda.gtkdemo",
-        flags=Gio.ApplicationFlags.DEFAULT_FLAGS
+        flags=Gio.ApplicationFlags.DEFAULT_FLAGS,
     )
 
-    app.connect("activate", activate)
+    power_backend = PowerBackend()
+
+    app.connect(
+        "activate",
+        activate,
+        power_backend,
+    )
 
     return app.run(None)
 

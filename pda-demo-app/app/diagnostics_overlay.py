@@ -223,7 +223,7 @@ def create_bottom_action_row(
     return button_row
 
 
-def create_diagnostics_overlay(main_content, power_backend=None):
+def create_diagnostics_overlay(main_content, power_backend):
     """
     Wrap the main content with diagnostics and settings overlays.
     """
@@ -231,9 +231,6 @@ def create_diagnostics_overlay(main_content, power_backend=None):
     root_overlay.set_hexpand(True)
     root_overlay.set_vexpand(True)
     root_overlay.set_child(main_content)
-
-    if power_backend is None:
-        power_backend = PowerBackend()
 
     diagnostics_revealer = create_diagnostics_revealer(
         power_backend
