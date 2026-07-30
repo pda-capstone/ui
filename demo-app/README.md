@@ -83,6 +83,32 @@ Place the Python files in the same directory, then run:
 python3 demo.py
 ```
 
+### Fake HotSwap daemon testing
+
+To run the fake daemon and demo together on a private bus:
+
+```bash
+address=$(dbus-daemon --session --print-address --fork)
+export DBUS_SYSTEM_BUS_ADDRESS="$address"
+python3 fake_hotswapd.py &
+python3 demo.py
+```
+
+Use the control helper to simulate attachment, detachment, or power changes:
+
+```bash
+python3 fake_hotswapd_ctl.py status
+python3 fake_hotswapd_ctl.py attach
+python3 fake_hotswapd_ctl.py detach
+python3 fake_hotswapd_ctl.py power 300
+```
+
+If you need a custom control socket path, set:
+
+```bash
+export FAKE_HOTSWAPD_CONTROL_SOCKET=/tmp/my-fake-hotswapd.sock
+```
+
 ## Manual Test Checklist
 
 After launching the demo:

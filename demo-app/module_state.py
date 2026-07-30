@@ -3,6 +3,7 @@
 # Owner: Jiesui
 # Last updated: June 2026
 
+import os
 import time
 import gi
 
@@ -30,6 +31,7 @@ _STATE_CHANGE_CALLBACKS = []
 _PROXY = None
 _CONNECTION = None
 _SUBSCRIPTIONS = []
+_NAME_OWNER_SUBSCRIPTION = None
 
 
 def _notify_state_change():
@@ -49,6 +51,27 @@ def _set_daemon_status(connected):
     global DAEMON_STATUS, _CONNECTED_TO_DAEMON
     _CONNECTED_TO_DAEMON = bool(connected)
     DAEMON_STATUS = "Connected" if _CONNECTED_TO_DAEMON else "Unavailable"
+
+
+def _variant_child_count(variant):
+    if variant is None:
+        return 0
+    try:
+        return variant.n_children()
+    except TypeError:
+        return int(variant.n_children)
+
+
+def _find_bus_address_file():
+    for path in ["/tmp/hotswap_bus_address", "/tmp/hotswap_dbus_address"]:
+        try:
+            with open(path, "r") as handle:
+                address = handle.read().strip()
+            if address:
+                return address
+        except OSError:
+            continue
+    return None
 
 
 def get_connected_module_count():
@@ -79,7 +102,7 @@ def get_status_bar_text(expanded=False):
 
 def _module_from_variant(variant):
     """Convert a D-Bus module tuple variant to a local module dict."""
-    if variant is None or variant.get_n_children() < 5:
+    if variant is None or _variant_child_count(variant) < 5:
         return None
 
     devpath = variant.get_child_value(0).get_string()
@@ -103,11 +126,11 @@ def _parse_list_modules_reply(reply):
         return []
 
     type_string = reply.get_type_string()
-    if type_string.startswith("(") and reply.get_n_children() == 1:
+    if type_string.startswith("(") and _variant_child_count(reply) == 1:
         reply = reply.get_child_value(0)
 
     result = []
-    for i in range(reply.get_n_children()):
+    for i in range(_variant_child_count(reply)):
         item = reply.get_child_value(i)
         module = _module_from_variant(item)
         if module:
@@ -138,7 +161,7 @@ def _remove_module(devpath):
 def _on_daemon_signal(connection, sender_name, object_path, interface_name,
                       signal_name, parameters, user_data):
     if signal_name == "ModuleAttached":
-        if parameters is not None and parameters.get_n_children() >= 7:
+        if parameters is not None and _variant_child_count(parameters) >= 7:
             module = {
                 "devpath": parameters.get_child_value(0).get_string(),
                 "name": parameters.get_child_value(3).get_string(),
@@ -150,14 +173,15 @@ def _on_daemon_signal(connection, sender_name, object_path, interface_name,
             _set_daemon_status(True)
             _notify_state_change()
     elif signal_name == "ModuleDetached":
-        if parameters is not None and parameters.get_n_children() >= 1:
+        if parameters is not None and _variant_child_count(parameters) >= 1:
             devpath = parameters.get_child_value(0).get_string()
             _remove_module(devpath)
             _set_daemon_status(True)
             _notify_state_change()
     elif signal_name == "PowerChanged":
-        _set_daemon_status(True)
-        _notify_state_change()
+        if parameters is not None and _variant_child_count(parameters) >= 2:
+            _set_daemon_status(True)
+            _notify_state_change()
 
     return True
 
@@ -179,14 +203,64 @@ def _connect_signal(interface_name, member):
     _SUBSCRIPTIONS.append(subscription_id)
 
 
+def _on_name_owner_changed(connection, sender_name, object_path, interface_name,
+                           signal_name, parameters, user_data):
+    if parameters is None or signal_name != "NameOwnerChanged" or _variant_child_count(parameters) != 3:
+        return True
+
+    name = parameters.get_child_value(0).get_string()
+    if name != DBUS_BUS_NAME:
+        return True
+
+    old_owner = parameters.get_child_value(1).get_string()
+    new_owner = parameters.get_child_value(2).get_string()
+
+    if new_owner == "":
+        MODULES.clear()
+        _set_daemon_status(False)
+        _notify_state_change()
+    elif old_owner == "":
+        refresh_module_list()
+
+    return True
+
+
+def _connect_name_owner_watch():
+    global _NAME_OWNER_SUBSCRIPTION
+    if _CONNECTION is None:
+        return
+
+    _NAME_OWNER_SUBSCRIPTION = _CONNECTION.signal_subscribe(
+        None,
+        "org.freedesktop.DBus",
+        "NameOwnerChanged",
+        "/org/freedesktop/DBus",
+        None,
+        Gio.DBusSignalFlags.NONE,
+        _on_name_owner_changed,
+        None
+    )
+
+
 def _clear_subscriptions():
-    global _SUBSCRIPTIONS
+    global _SUBSCRIPTIONS, _NAME_OWNER_SUBSCRIPTION
     if _CONNECTION is None:
         return
 
     for subscription_id in _SUBSCRIPTIONS:
         _CONNECTION.signal_unsubscribe(subscription_id)
     _SUBSCRIPTIONS = []
+
+    if _NAME_OWNER_SUBSCRIPTION is not None:
+        _CONNECTION.signal_unsubscribe(_NAME_OWNER_SUBSCRIPTION)
+        _NAME_OWNER_SUBSCRIPTION = None
+
+
+def _schedule_periodic_refresh():
+    if _PROXY is None:
+        return False
+    refresh_module_list()
+    return True
 
 
 def refresh_module_list():
@@ -220,16 +294,34 @@ def connect_to_daemon():
     """Connect to the hot-swap daemon over D-Bus and subscribe to signals."""
     global _PROXY, _CONNECTION
     try:
-        _PROXY = Gio.DBusProxy.new_for_bus_sync(
-            Gio.BusType.SYSTEM,
-            Gio.DBusProxyFlags.NONE,
-            None,
-            DBUS_BUS_NAME,
-            DBUS_OBJECT_PATH,
-            DBUS_INTERFACE,
-            None
-        )
-        _CONNECTION = _PROXY.get_connection()
+        bus_address = os.environ.get('DBUS_SYSTEM_BUS_ADDRESS') or _find_bus_address_file()
+        if bus_address:
+            connection = Gio.DBusConnection.new_for_address_sync(
+                bus_address,
+                Gio.DBusConnectionFlags.AUTHENTICATION_CLIENT | Gio.DBusConnectionFlags.MESSAGE_BUS_CONNECTION,
+                None,
+            )
+            _PROXY = Gio.DBusProxy.new_sync(
+                connection,
+                Gio.DBusProxyFlags.NONE,
+                None,
+                DBUS_BUS_NAME,
+                DBUS_OBJECT_PATH,
+                DBUS_INTERFACE,
+                None,
+            )
+            _CONNECTION = connection
+        else:
+            _PROXY = Gio.DBusProxy.new_for_bus_sync(
+                Gio.BusType.SYSTEM,
+                Gio.DBusProxyFlags.NONE,
+                None,
+                DBUS_BUS_NAME,
+                DBUS_OBJECT_PATH,
+                DBUS_INTERFACE,
+                None,
+            )
+            _CONNECTION = _PROXY.get_connection()
     except Exception as exc:
         print("hot-swap daemon D-Bus proxy failed:", exc)
         _set_daemon_status(False)
@@ -239,7 +331,9 @@ def connect_to_daemon():
     _connect_signal(DBUS_INTERFACE, "ModuleAttached")
     _connect_signal(DBUS_INTERFACE, "ModuleDetached")
     _connect_signal(DBUS_INTERFACE, "PowerChanged")
+    _connect_name_owner_watch()
     refresh_module_list()
+    GLib.timeout_add_seconds(5, _schedule_periodic_refresh)
     return True
 
 
