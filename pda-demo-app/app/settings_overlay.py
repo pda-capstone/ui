@@ -6,9 +6,12 @@
 """
 Power mode settings overlay for the PDA GTK demo.
 
-The overlay allows the user to select a persistent power mode and save
-it to the PDA settings JSON file. Applying the selected governor to the
-operating system remains the responsibility of the power controller.
+The overlay saves the selected power mode to the PDA settings JSON
+file and then tries to apply the corresponding CPUfreq governor. Saving
+remains available on development systems where CPUfreq is unavailable.
+
+Power-mode requests are sent through PowerBackend so the GTK layer does
+not access CPUfreq directly.
 """
 
 import json
@@ -18,29 +21,15 @@ import gi
 gi.require_version("Gtk", "4.0")
 from gi.repository import Gtk
 
-from app.settings_store import (
+from app.power_backend import PowerBackendError
+from app.power_modes import (
     DEFAULT_POWER_MODE,
+    POWER_MODE_DEFINITIONS,
+    get_power_mode_definition,
+)
+from app.settings_store import (
     load_settings,
     save_settings,
-)
-
-
-POWER_MODE_OPTIONS = (
-    {
-        "id": "default",
-        "label": "Default",
-        "governor": "schedutil",
-    },
-    {
-        "id": "low_power",
-        "label": "Low Power",
-        "governor": "powersave",
-    },
-    {
-        "id": "performance",
-        "label": "Performance",
-        "governor": "performance",
-    },
 )
 
 
@@ -53,17 +42,6 @@ def create_left_aligned_label(text):
     label.set_wrap(True)
 
     return label
-
-
-def get_power_mode_option(power_mode):
-    """
-    Return the metadata for one power mode.
-    """
-    for option in POWER_MODE_OPTIONS:
-        if option["id"] == power_mode:
-            return option
-
-    return POWER_MODE_OPTIONS[0]
 
 
 def set_selected_power_mode(mode_buttons, power_mode):
@@ -89,20 +67,100 @@ def get_selected_power_mode(mode_buttons):
     return DEFAULT_POWER_MODE
 
 
-def update_loaded_mode_status(status_label, power_mode):
+def get_power_mode_display_text(power_mode):
     """
-    Display the currently configured power mode.
+    Return the shared display label and governor for one power mode.
     """
-    option = get_power_mode_option(power_mode)
+    definition = get_power_mode_definition(power_mode)
+
+    return f"{definition.label} ({definition.governor})"
+
+
+def update_loaded_mode_status(
+    status_label,
+    power_backend,
+    power_mode,
+):
+    """
+    Display the configured mode and currently active governor.
+    """
+    display_text = get_power_mode_display_text(power_mode)
+
+    try:
+        active_governor = power_backend.get_current_governor()
+    except PowerBackendError as error:
+        status_label.set_text(
+            f"Configured mode: {display_text}\n"
+            f"Active governor unavailable: {error}"
+        )
+        return
 
     status_label.set_text(
-        f"Configured mode: {option['label']} "
-        f"({option['governor']})"
+        f"Configured mode: {display_text}\n"
+        f"Active governor: {active_governor}"
+    )
+
+
+def load_saved_power_mode():
+    """
+    Load and return the configured power mode.
+    """
+    settings = load_settings()
+
+    return settings["power_mode"]
+
+
+def apply_saved_power_mode(
+    power_backend,
+    mode_buttons,
+    status_label,
+):
+    """
+    Apply the saved power mode during UI initialization.
+
+    Failures are displayed in the settings panel and do not prevent the
+    rest of the UI from starting.
+    """
+    try:
+        power_mode = load_saved_power_mode()
+    except (
+        OSError,
+        json.JSONDecodeError,
+        ValueError,
+    ) as error:
+        set_selected_power_mode(
+            mode_buttons,
+            DEFAULT_POWER_MODE,
+        )
+        status_label.set_text(
+            f"Could not load saved power mode: {error}"
+        )
+        return
+
+    set_selected_power_mode(mode_buttons, power_mode)
+    display_text = get_power_mode_display_text(power_mode)
+
+    try:
+        active_governor = power_backend.apply_power_mode(
+            power_mode
+        )
+    except PowerBackendError as error:
+        status_label.set_text(
+            f"Configured mode: {display_text}\n"
+            "Could not apply the saved mode during startup:\n"
+            f"{error}"
+        )
+        return
+
+    status_label.set_text(
+        f"Applied saved mode: {display_text}\n"
+        f"Active governor: {active_governor}"
     )
 
 
 def on_open_settings_clicked(
     _button,
+    power_backend,
     settings_revealer,
     mode_buttons,
     status_label,
@@ -111,8 +169,7 @@ def on_open_settings_clicked(
     Load the saved settings and show the settings overlay.
     """
     try:
-        settings = load_settings()
-        power_mode = settings["power_mode"]
+        power_mode = load_saved_power_mode()
     except (
         OSError,
         json.JSONDecodeError,
@@ -125,6 +182,7 @@ def on_open_settings_clicked(
     else:
         update_loaded_mode_status(
             status_label,
+            power_backend,
             power_mode,
         )
 
@@ -155,30 +213,90 @@ def on_settings_child_revealed(
         settings_revealer.set_can_target(False)
 
 
+def restore_previous_governor(
+    power_backend,
+    previous_governor,
+):
+    """
+    Try to restore the governor active before the operation.
+    """
+    try:
+        restored_governor = power_backend.restore_governor(
+            previous_governor
+        )
+    except PowerBackendError as error:
+        return (
+            "The previous active governor could not be restored: "
+            f"{error}"
+        )
+
+    return (
+        "The previous active governor was restored "
+        f"({restored_governor})."
+    )
+
+
 def on_save_settings_clicked(
     _button,
+    power_backend,
     mode_buttons,
     status_label,
 ):
     """
-    Save the selected power mode to the settings JSON file.
+    Save the selected power mode, then try to apply its governor.
+
+    Saving is independent of CPUfreq availability so the settings UI can
+    be tested on development systems such as macOS. On supported Linux
+    systems, the selected governor is applied after the JSON write
+    succeeds.
     """
     power_mode = get_selected_power_mode(mode_buttons)
-    option = get_power_mode_option(power_mode)
+    display_text = get_power_mode_display_text(power_mode)
 
     try:
         settings_path = save_settings(power_mode)
     except (OSError, ValueError) as error:
         status_label.set_text(
-            f"Could not save settings: {error}"
+            "Could not save the selected power mode.\n"
+            "No governor changes were made.\n\n"
+            f"{error}"
+        )
+        return
+
+    try:
+        previous_governor = power_backend.get_current_governor()
+    except PowerBackendError as error:
+        status_label.set_text(
+            f"Saved mode: {display_text}\n"
+            f"Config: {settings_path}\n\n"
+            "The mode could not be applied on this system because "
+            "the active governor is unavailable:\n"
+            f"{error}"
+        )
+        return
+
+    try:
+        active_governor = power_backend.apply_power_mode(
+            power_mode
+        )
+    except PowerBackendError as error:
+        rollback_status = restore_previous_governor(
+            power_backend,
+            previous_governor,
+        )
+        status_label.set_text(
+            f"Saved mode: {display_text}\n"
+            f"Config: {settings_path}\n\n"
+            "Could not apply the selected power mode:\n"
+            f"{error}\n\n"
+            f"{rollback_status}"
         )
         return
 
     status_label.set_text(
-        f"Saved configuration: {option['label']} "
-        f"({option['governor']})\n"
-        f"Config: {settings_path}\n"
-        "The operating system governor was not changed."
+        f"Saved and applied: {display_text}\n"
+        f"Active governor: {active_governor}\n"
+        f"Config: {settings_path}"
     )
 
 
@@ -225,14 +343,12 @@ def create_power_mode_buttons():
     mode_buttons = {}
     first_button = None
 
-    for option in POWER_MODE_OPTIONS:
-        button_label = (
-            f"{option['label']} "
-            f"({option['governor']})"
-        )
-
+    for definition in POWER_MODE_DEFINITIONS:
         mode_button = Gtk.CheckButton(
-            label=button_label,
+            label=(
+                f"{definition.label} "
+                f"({definition.governor})"
+            ),
         )
         mode_button.set_halign(Gtk.Align.START)
 
@@ -241,7 +357,7 @@ def create_power_mode_buttons():
         else:
             mode_button.set_group(first_button)
 
-        mode_buttons[option["id"]] = mode_button
+        mode_buttons[definition.identifier] = mode_button
         button_box.append(mode_button)
 
     mode_buttons[DEFAULT_POWER_MODE].set_active(True)
@@ -249,18 +365,23 @@ def create_power_mode_buttons():
     return button_box, mode_buttons
 
 
-def create_save_button(mode_buttons, status_label):
+def create_save_button(
+    power_backend,
+    mode_buttons,
+    status_label,
+):
     """
-    Create the Save Settings button.
+    Create the Save and Apply button.
     """
     save_button = Gtk.Button(
-        label="Save Settings",
+        label="Save and Apply",
     )
     save_button.set_halign(Gtk.Align.START)
 
     save_button.connect(
         "clicked",
         on_save_settings_clicked,
+        power_backend,
         mode_buttons,
         status_label,
     )
@@ -268,7 +389,7 @@ def create_save_button(mode_buttons, status_label):
     return save_button
 
 
-def create_settings_content():
+def create_settings_content(power_backend):
     """
     Create the scrollable settings content.
 
@@ -282,20 +403,25 @@ def create_settings_content():
     content_box.set_hexpand(True)
 
     description_label = create_left_aligned_label(
-        "Select the power mode that the power controller should use. "
-        "The selection is saved to the PDA settings JSON file."
+        "Select a power mode to save in the PDA settings JSON file. "
+        "On supported Linux systems, the corresponding CPUfreq "
+        "governor is also applied."
     )
 
     mode_button_box, mode_buttons = (
         create_power_mode_buttons()
     )
 
+    default_display_text = get_power_mode_display_text(
+        DEFAULT_POWER_MODE
+    )
     status_label = create_left_aligned_label(
-        "Configured mode: Default (schedutil)"
+        f"Configured mode: {default_display_text}"
     )
     status_label.set_selectable(True)
 
     save_button = create_save_button(
+        power_backend,
         mode_buttons,
         status_label,
     )
@@ -319,7 +445,10 @@ def create_settings_content():
     return scrolled_window, mode_buttons, status_label
 
 
-def create_settings_panel(settings_revealer):
+def create_settings_panel(
+    settings_revealer,
+    power_backend,
+):
     """
     Build the full-screen power mode settings panel.
 
@@ -333,8 +462,6 @@ def create_settings_panel(settings_revealer):
     background_box.set_valign(Gtk.Align.FILL)
     background_box.set_hexpand(True)
     background_box.set_vexpand(True)
-
-    # Fill the complete overlay using the current GTK theme.
     background_box.add_css_class("background")
 
     panel_box = Gtk.Box(
@@ -354,7 +481,7 @@ def create_settings_panel(settings_revealer):
         settings_content,
         mode_buttons,
         status_label,
-    ) = create_settings_content()
+    ) = create_settings_content(power_backend)
 
     panel_box.append(
         create_settings_header(settings_revealer)
@@ -366,7 +493,7 @@ def create_settings_panel(settings_revealer):
     return background_box, mode_buttons, status_label
 
 
-def create_settings_revealer():
+def create_settings_revealer(power_backend):
     """
     Create the hidden full-screen settings revealer.
 
@@ -389,7 +516,10 @@ def create_settings_revealer():
         settings_panel,
         mode_buttons,
         status_label,
-    ) = create_settings_panel(settings_revealer)
+    ) = create_settings_panel(
+        settings_revealer,
+        power_backend,
+    )
 
     settings_revealer.set_child(settings_panel)
     settings_revealer.connect(
@@ -401,6 +531,7 @@ def create_settings_revealer():
 
 
 def create_settings_button(
+    power_backend,
     settings_revealer,
     mode_buttons,
     status_label,
@@ -422,6 +553,7 @@ def create_settings_button(
     settings_button.connect(
         "clicked",
         on_open_settings_clicked,
+        power_backend,
         settings_revealer,
         mode_buttons,
         status_label,
@@ -430,9 +562,11 @@ def create_settings_button(
     return settings_button
 
 
-def create_settings_controls():
+def create_settings_controls(power_backend):
     """
     Create the settings revealer and its launch button.
+
+    The saved power mode is applied once while the controls are created.
 
     Returns:
         tuple: Settings revealer and settings launch button.
@@ -441,9 +575,16 @@ def create_settings_controls():
         settings_revealer,
         mode_buttons,
         status_label,
-    ) = create_settings_revealer()
+    ) = create_settings_revealer(power_backend)
+
+    apply_saved_power_mode(
+        power_backend,
+        mode_buttons,
+        status_label,
+    )
 
     settings_button = create_settings_button(
+        power_backend,
         settings_revealer,
         mode_buttons,
         status_label,
