@@ -21,13 +21,13 @@ import gi
 gi.require_version("Gtk", "4.0")
 from gi.repository import Gtk
 
-from power_backend import PowerBackendError
-from power_modes import (
+from app.power_backend import PowerBackendError
+from app.power_modes import (
     DEFAULT_POWER_MODE,
     POWER_MODE_DEFINITIONS,
     get_power_mode_definition,
 )
-from settings_store import (
+from app.settings_store import (
     load_settings,
     save_settings,
 )

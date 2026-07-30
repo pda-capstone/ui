@@ -1,0 +1,23 @@
+[build-system]
+requires = ["setuptools>=61.0.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "pda-demo-app"
+version = "0.1.0"
+description = "Demo app for Pocket Distro Alpha"
+readme = "README.md"
+# license = {text = "GPL-3.0-or-later"}
+requires-python = ">=3.14"
+
+[project.scripts]
+app = "app:main"
+
+[project.urls]
+Homepage = "https://github.com/pda-capstone/ui"
+
+[tool.setuptools.package-dir]
+app = "app"
+
+[tool.ruff]
+line-length = 80

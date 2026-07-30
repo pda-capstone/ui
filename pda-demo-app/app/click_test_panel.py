@@ -15,7 +15,7 @@ import gi
 gi.require_version("Gtk", "4.0")
 from gi.repository import Gtk
 
-from click_effects import (
+from app.click_effects import (
     add_click_effect,
     create_effect_area,
     create_effect_state,
@@ -24,7 +24,7 @@ from click_effects import (
     microseconds_to_seconds,
     prune_finished_effects
 )
-from fps_display import (
+from app.fps_display import (
     create_fps_label,
     create_fps_state,
     update_fps_label

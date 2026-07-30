@@ -15,7 +15,7 @@ import importlib
 from dataclasses import dataclass
 from pathlib import Path
 
-from power_modes import get_power_mode_definition
+from app.power_modes import get_power_mode_definition
 
 
 class PowerBackendError(RuntimeError):

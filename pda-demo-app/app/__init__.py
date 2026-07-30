@@ -18,10 +18,10 @@ import gi
 gi.require_version("Gtk", "4.0")
 from gi.repository import Gtk, Gio
 
-from daemon_status_panel import create_daemon_status_panel
-from click_test_panel import create_click_test_panel
-from diagnostics_overlay import create_diagnostics_overlay
-from power_backend import PowerBackend
+from app.daemon_status_panel import create_daemon_status_panel
+from app.click_test_panel import create_click_test_panel
+from app.diagnostics_overlay import create_diagnostics_overlay
+from app.power_backend import PowerBackend
 
 
 def activate(app, power_backend):

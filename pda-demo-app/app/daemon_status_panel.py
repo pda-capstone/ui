@@ -16,7 +16,7 @@ import gi
 gi.require_version("Gtk", "4.0")
 from gi.repository import Gtk
 
-from module_state import (
+from app.module_state import (
     get_status_bar_text,
     get_module_detail_lines
 )

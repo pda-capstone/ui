@@ -15,7 +15,7 @@ import json
 import os
 from pathlib import Path
 
-from power_modes import (
+from app.power_modes import (
     DEFAULT_POWER_MODE,
     VALID_POWER_MODES,
 )
