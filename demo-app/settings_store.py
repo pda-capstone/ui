@@ -15,18 +15,15 @@ import json
 import os
 from pathlib import Path
 
+from power_modes import (
+    DEFAULT_POWER_MODE,
+    VALID_POWER_MODES,
+)
+
 
 APPLICATION_CONFIG_DIRECTORY = "pda-demo"
 SETTINGS_FILENAME = "settings.json"
 SETTINGS_SCHEMA_VERSION = 1
-
-DEFAULT_POWER_MODE = "default"
-
-VALID_POWER_MODES = (
-    "default",
-    "low_power",
-    "performance",
-)
 
 
 def get_config_directory():
