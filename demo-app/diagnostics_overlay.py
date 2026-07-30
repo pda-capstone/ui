@@ -238,7 +238,7 @@ def create_diagnostics_overlay(main_content, power_backend):
     (
         settings_revealer,
         settings_button,
-    ) = create_settings_controls()
+    ) = create_settings_controls(power_backend)
 
     bottom_action_row = create_bottom_action_row(
         diagnostics_revealer,
