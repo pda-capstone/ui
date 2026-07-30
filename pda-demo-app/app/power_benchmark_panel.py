@@ -21,7 +21,7 @@ import gi
 gi.require_version("Gtk", "4.0")
 from gi.repository import Gtk
 
-from power_backend import BenchmarkRequest
+from app.power_backend import BenchmarkRequest
 
 
 GOVERNOR_OPTIONS = (

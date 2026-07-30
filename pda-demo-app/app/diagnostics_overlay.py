@@ -15,9 +15,9 @@ import gi
 gi.require_version("Gtk", "4.0")
 from gi.repository import Gtk
 
-from power_benchmark_panel import create_power_benchmark_panel
-from settings_overlay import create_settings_controls
-from power_backend import PowerBackend
+from app.power_benchmark_panel import create_power_benchmark_panel
+from app.settings_overlay import create_settings_controls
+from app.power_backend import PowerBackend
 
 
 def create_left_aligned_label(text):

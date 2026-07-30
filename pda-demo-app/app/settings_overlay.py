@@ -18,7 +18,7 @@ import gi
 gi.require_version("Gtk", "4.0")
 from gi.repository import Gtk
 
-from settings_store import (
+from app.settings_store import (
     DEFAULT_POWER_MODE,
     load_settings,
     save_settings,

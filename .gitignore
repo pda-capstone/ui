@@ -4,3 +4,9 @@
 # Python cache
 __pycache__/
 *.py[cod]
+
+# Packaging
+
+*.egg-info/
+dist/
+build/
