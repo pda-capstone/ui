@@ -46,8 +46,7 @@ POWER_MODE_DEFINITIONS = (
 )
 
 POWER_MODE_DEFINITIONS_BY_ID = {
-    definition.identifier: definition
-    for definition in POWER_MODE_DEFINITIONS
+    definition.identifier: definition for definition in POWER_MODE_DEFINITIONS
 }
 
 if len(POWER_MODE_DEFINITIONS_BY_ID) != len(POWER_MODE_DEFINITIONS):
@@ -69,6 +68,4 @@ def get_power_mode_definition(power_mode):
     try:
         return POWER_MODE_DEFINITIONS_BY_ID[power_mode]
     except KeyError as error:
-        raise ValueError(
-            f"Unsupported power mode: {power_mode}"
-        ) from error
+        raise ValueError(f"Unsupported power mode: {power_mode}") from error

@@ -41,7 +41,7 @@ def create_fps_state(fps_label, start_time_seconds):
     return {
         "fps_label": fps_label,
         "window_start_seconds": start_time_seconds,
-        "frame_count": 0
+        "frame_count": 0,
     }
 
 
@@ -50,10 +50,7 @@ def update_fps_label(fps_state, current_time_seconds):
     Update the FPS label from GTK frame-clock ticks.
     """
     fps_state["frame_count"] += 1
-    elapsed_seconds = (
-        current_time_seconds
-        - fps_state["window_start_seconds"]
-    )
+    elapsed_seconds = current_time_seconds - fps_state["window_start_seconds"]
 
     if elapsed_seconds < FPS_UPDATE_INTERVAL_SECONDS:
         return

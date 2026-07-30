@@ -16,16 +16,8 @@ real data from the hot-swap daemon through D-Bus.
 DAEMON_STATUS = "Running (Testing)"
 
 MODULES = [
-    {
-        "name": "Expansion module A",
-        "role": "Demo module",
-        "state": "connected"
-    },
-    {
-        "name": "Expansion module B",
-        "role": "Demo module",
-        "state": "connected"
-    }
+    {"name": "Expansion module A", "role": "Demo module", "state": "connected"},
+    {"name": "Expansion module B", "role": "Demo module", "state": "connected"},
 ]
 
 
@@ -33,10 +25,7 @@ def get_connected_module_count():
     """
     Count connected modules from the current module state list.
     """
-    return sum(
-        1 for module in MODULES
-        if module.get("state") == "connected"
-    )
+    return sum(1 for module in MODULES if module.get("state") == "connected")
 
 
 def get_status_bar_text(expanded=False):
@@ -59,9 +48,7 @@ def get_module_detail_lines():
     """
     Build text lines for the expanded module status panel.
     """
-    lines = [
-        f"Hot-swap daemon: {DAEMON_STATUS}"
-    ]
+    lines = [f"Hot-swap daemon: {DAEMON_STATUS}"]
 
     if MODULES:
         for index, module in enumerate(MODULES, start=1):
@@ -69,9 +56,7 @@ def get_module_detail_lines():
             module_role = module.get("role", "Unknown role")
             module_state = module.get("state", "unknown")
 
-            lines.append(
-                f"{module_name}: {module_state} · {module_role}"
-            )
+            lines.append(f"{module_name}: {module_state} · {module_role}")
     else:
         lines.append("Modules: none detected")
 

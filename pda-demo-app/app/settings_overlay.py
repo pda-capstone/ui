@@ -96,8 +96,7 @@ def update_loaded_mode_status(
         return
 
     status_label.set_text(
-        f"Configured mode: {display_text}\n"
-        f"Active governor: {active_governor}"
+        f"Configured mode: {display_text}\nActive governor: {active_governor}"
     )
 
 
@@ -132,18 +131,14 @@ def apply_saved_power_mode(
             mode_buttons,
             DEFAULT_POWER_MODE,
         )
-        status_label.set_text(
-            f"Could not load saved power mode: {error}"
-        )
+        status_label.set_text(f"Could not load saved power mode: {error}")
         return
 
     set_selected_power_mode(mode_buttons, power_mode)
     display_text = get_power_mode_display_text(power_mode)
 
     try:
-        active_governor = power_backend.apply_power_mode(
-            power_mode
-        )
+        active_governor = power_backend.apply_power_mode(power_mode)
     except PowerBackendError as error:
         status_label.set_text(
             f"Configured mode: {display_text}\n"
@@ -176,9 +171,7 @@ def on_open_settings_clicked(
         ValueError,
     ) as error:
         power_mode = DEFAULT_POWER_MODE
-        status_label.set_text(
-            f"Could not load settings: {error}"
-        )
+        status_label.set_text(f"Could not load settings: {error}")
     else:
         update_loaded_mode_status(
             status_label,
@@ -221,19 +214,11 @@ def restore_previous_governor(
     Try to restore the governor active before the operation.
     """
     try:
-        restored_governor = power_backend.restore_governor(
-            previous_governor
-        )
+        restored_governor = power_backend.restore_governor(previous_governor)
     except PowerBackendError as error:
-        return (
-            "The previous active governor could not be restored: "
-            f"{error}"
-        )
+        return f"The previous active governor could not be restored: {error}"
 
-    return (
-        "The previous active governor was restored "
-        f"({restored_governor})."
-    )
+    return f"The previous active governor was restored ({restored_governor})."
 
 
 def on_save_settings_clicked(
@@ -276,9 +261,7 @@ def on_save_settings_clicked(
         return
 
     try:
-        active_governor = power_backend.apply_power_mode(
-            power_mode
-        )
+        active_governor = power_backend.apply_power_mode(power_mode)
     except PowerBackendError as error:
         rollback_status = restore_previous_governor(
             power_backend,
@@ -310,9 +293,7 @@ def create_settings_header(settings_revealer):
     )
     header.set_hexpand(True)
 
-    title_label = Gtk.Label(
-        label="Power Mode Settings"
-    )
+    title_label = Gtk.Label(label="Power Mode Settings")
     title_label.set_xalign(0)
     title_label.set_hexpand(True)
     title_label.add_css_class("title-2")
@@ -345,10 +326,7 @@ def create_power_mode_buttons():
 
     for definition in POWER_MODE_DEFINITIONS:
         mode_button = Gtk.CheckButton(
-            label=(
-                f"{definition.label} "
-                f"({definition.governor})"
-            ),
+            label=(f"{definition.label} ({definition.governor})"),
         )
         mode_button.set_halign(Gtk.Align.START)
 
@@ -408,13 +386,9 @@ def create_settings_content(power_backend):
         "governor is also applied."
     )
 
-    mode_button_box, mode_buttons = (
-        create_power_mode_buttons()
-    )
+    mode_button_box, mode_buttons = create_power_mode_buttons()
 
-    default_display_text = get_power_mode_display_text(
-        DEFAULT_POWER_MODE
-    )
+    default_display_text = get_power_mode_display_text(DEFAULT_POWER_MODE)
     status_label = create_left_aligned_label(
         f"Configured mode: {default_display_text}"
     )
@@ -483,9 +457,7 @@ def create_settings_panel(
         status_label,
     ) = create_settings_content(power_backend)
 
-    panel_box.append(
-        create_settings_header(settings_revealer)
-    )
+    panel_box.append(create_settings_header(settings_revealer))
     panel_box.append(settings_content)
 
     background_box.append(panel_box)
@@ -505,9 +477,7 @@ def create_settings_revealer(power_backend):
     settings_revealer.set_valign(Gtk.Align.FILL)
     settings_revealer.set_hexpand(True)
     settings_revealer.set_vexpand(True)
-    settings_revealer.set_transition_type(
-        Gtk.RevealerTransitionType.CROSSFADE
-    )
+    settings_revealer.set_transition_type(Gtk.RevealerTransitionType.CROSSFADE)
     settings_revealer.set_transition_duration(200)
     settings_revealer.set_reveal_child(False)
     settings_revealer.set_can_target(False)
@@ -540,15 +510,11 @@ def create_settings_button(
     Create the button that opens the settings overlay.
     """
     settings_icon = Gtk.Label()
-    settings_icon.set_markup(
-        '<span size="x-large">⚙</span>'
-    )
+    settings_icon.set_markup('<span size="x-large">⚙</span>')
 
     settings_button = Gtk.Button()
     settings_button.set_child(settings_icon)
-    settings_button.set_tooltip_text(
-        "Power Mode Settings"
-    )
+    settings_button.set_tooltip_text("Power Mode Settings")
 
     settings_button.connect(
         "clicked",
