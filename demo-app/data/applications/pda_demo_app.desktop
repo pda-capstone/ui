@@ -1,0 +1,8 @@
+[Desktop Entry]
+Type=Application
+Name=PDA Demo App
+Comment=Demo app for Pocket Distro Alpha
+Icon=pda-demo-app
+Exec=pda-demo-app
+Terminal=false
+Categories=Utility
