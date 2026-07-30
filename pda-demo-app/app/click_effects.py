@@ -36,19 +36,14 @@ def get_current_time_seconds():
     """
     Return the current monotonic time in seconds.
     """
-    return microseconds_to_seconds(
-        GLib.get_monotonic_time()
-    )
+    return microseconds_to_seconds(GLib.get_monotonic_time())
 
 
 def create_effect_state():
     """
     Store active click animation records.
     """
-    return {
-        "ripples": [],
-        "dots": []
-    }
+    return {"ripples": [], "dots": []}
 
 
 def create_effect_area(effect_state):
@@ -61,10 +56,7 @@ def create_effect_area(effect_state):
     effect_area.set_halign(Gtk.Align.FILL)
     effect_area.set_valign(Gtk.Align.FILL)
     effect_area.set_can_target(False)
-    effect_area.set_draw_func(
-        draw_click_effects,
-        effect_state
-    )
+    effect_area.set_draw_func(draw_click_effects, effect_state)
 
     return effect_area
 
@@ -81,7 +73,7 @@ def add_click_effect(effect_area, effect_state):
         {
             "start_time_seconds": current_time_seconds,
             "center_x": center_x,
-            "center_y": center_y
+            "center_y": center_y,
         }
     )
 
@@ -93,7 +85,7 @@ def add_click_effect(effect_area, effect_state):
                 "start_time_seconds": current_time_seconds,
                 "center_x": center_x,
                 "center_y": center_y,
-                "angle": angle
+                "angle": angle,
             }
         )
 
@@ -104,10 +96,7 @@ def has_active_effects(effect_state):
     """
     Check whether any click animations are still visible.
     """
-    return bool(
-        effect_state["ripples"]
-        or effect_state["dots"]
-    )
+    return bool(effect_state["ripples"] or effect_state["dots"])
 
 
 def prune_finished_effects(effect_state, current_time_seconds):
@@ -115,7 +104,8 @@ def prune_finished_effects(effect_state, current_time_seconds):
     Remove completed animation records so the demo stays lightweight.
     """
     effect_state["ripples"] = [
-        ripple for ripple in effect_state["ripples"]
+        ripple
+        for ripple in effect_state["ripples"]
         if (
             current_time_seconds - ripple["start_time_seconds"]
             < RIPPLE_DURATION_SECONDS
@@ -123,7 +113,8 @@ def prune_finished_effects(effect_state, current_time_seconds):
     ]
 
     effect_state["dots"] = [
-        dot for dot in effect_state["dots"]
+        dot
+        for dot in effect_state["dots"]
         if (
             current_time_seconds - dot["start_time_seconds"]
             < DOT_DURATION_SECONDS
@@ -156,13 +147,7 @@ def draw_ripple(context, ripple, current_time_seconds):
     context.save()
     context.set_source_rgba(0.2, 0.55, 1.0, opacity)
     context.set_line_width(2.0)
-    context.arc(
-        ripple["center_x"],
-        ripple["center_y"],
-        radius,
-        0,
-        math.tau
-    )
+    context.arc(ripple["center_x"], ripple["center_y"], radius, 0, math.tau)
     context.stroke()
     context.restore()
 

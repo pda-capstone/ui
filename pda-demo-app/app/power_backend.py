@@ -88,14 +88,11 @@ class PowerBackend:
             ) from self._governor_import_error
 
         try:
-            self._governor_controller = importlib.import_module(
-                "governors"
-            )
+            self._governor_controller = importlib.import_module("governors")
         except Exception as error:
             self._governor_import_error = error
             raise GovernorUnavailableError(
-                "The CPU governor controller could not be loaded: "
-                f"{error}"
+                f"The CPU governor controller could not be loaded: {error}"
             ) from error
 
         return self._governor_controller
@@ -113,9 +110,7 @@ class PowerBackend:
         """
         Explain why benchmark actions cannot currently run.
         """
-        return (
-            "Power benchmark integration is not available in this build."
-        )
+        return "Power benchmark integration is not available in this build."
 
     def get_governor_for_power_mode(self, power_mode):
         """
@@ -127,9 +122,7 @@ class PowerBackend:
         try:
             definition = get_power_mode_definition(power_mode)
         except ValueError as error:
-            raise UnsupportedPowerModeError(
-                str(error)
-            ) from error
+            raise UnsupportedPowerModeError(str(error)) from error
 
         return definition.governor
 
@@ -143,13 +136,10 @@ class PowerBackend:
         controller = self._get_governor_controller()
 
         try:
-            available_governors = tuple(
-                controller.available_governors()
-            )
+            available_governors = tuple(controller.available_governors())
         except (AttributeError, OSError, RuntimeError) as error:
             raise GovernorUnavailableError(
-                "Could not read the available CPU governors: "
-                f"{error}"
+                f"Could not read the available CPU governors: {error}"
             ) from error
 
         if not available_governors:
@@ -172,8 +162,7 @@ class PowerBackend:
             current_governor = controller.get_current_governor()
         except (AttributeError, OSError, RuntimeError) as error:
             raise GovernorUnavailableError(
-                "Could not read the active CPU governor: "
-                f"{error}"
+                f"Could not read the active CPU governor: {error}"
             ) from error
 
         if not current_governor:
@@ -242,9 +231,7 @@ class PowerBackend:
             GovernorApplyError: If the governor cannot be applied or
                 verified.
         """
-        requested_governor = self.get_governor_for_power_mode(
-            power_mode
-        )
+        requested_governor = self.get_governor_for_power_mode(power_mode)
 
         return self._set_and_verify_governor(requested_governor)
 

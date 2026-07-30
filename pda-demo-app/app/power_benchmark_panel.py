@@ -75,10 +75,7 @@ def create_dropdown(options):
     """
     Create a drop-down containing the supplied option labels.
     """
-    option_labels = [
-        option["label"]
-        for option in options
-    ]
+    option_labels = [option["label"] for option in options]
 
     option_model = Gtk.StringList.new(option_labels)
     dropdown = Gtk.DropDown.new(option_model, None)
@@ -106,9 +103,7 @@ def normalize_output_filename(output_filename):
     """
     normalized_filename = output_filename.strip()
 
-    if normalized_filename and not normalized_filename.lower().endswith(
-        ".csv"
-    ):
+    if normalized_filename and not normalized_filename.lower().endswith(".csv"):
         normalized_filename = f"{normalized_filename}.csv"
 
     return normalized_filename
@@ -134,14 +129,12 @@ def validate_benchmark_settings(
 
     if duration_seconds < MINIMUM_DURATION_SECONDS:
         raise ValueError(
-            "Duration must be at least "
-            f"{MINIMUM_DURATION_SECONDS} second."
+            f"Duration must be at least {MINIMUM_DURATION_SECONDS} second."
         )
 
     if duration_seconds > MAXIMUM_DURATION_SECONDS:
         raise ValueError(
-            "Duration cannot exceed "
-            f"{MAXIMUM_DURATION_SECONDS} seconds."
+            f"Duration cannot exceed {MAXIMUM_DURATION_SECONDS} seconds."
         )
 
     if not output_filename:
@@ -174,9 +167,7 @@ def on_start_benchmark_clicked(
         WORKLOAD_OPTIONS,
     )
     duration_seconds = duration_input.get_value_as_int()
-    output_filename = normalize_output_filename(
-        output_entry.get_text()
-    )
+    output_filename = normalize_output_filename(output_entry.get_text())
 
     try:
         validate_benchmark_settings(
@@ -186,9 +177,7 @@ def on_start_benchmark_clicked(
             output_filename,
         )
     except ValueError as error:
-        status_label.set_text(
-            f"Status: Error — {error}"
-        )
+        status_label.set_text(f"Status: Error — {error}")
         return
 
     output_entry.set_text(output_filename)
@@ -214,18 +203,12 @@ def on_start_benchmark_clicked(
         return
 
     try:
-        power_backend.start_benchmark(
-            benchmark_request
-        )
+        power_backend.start_benchmark(benchmark_request)
     except RuntimeError as error:
-        status_label.set_text(
-            f"Status: Could not start benchmark — {error}"
-        )
+        status_label.set_text(f"Status: Could not start benchmark — {error}")
         return
 
-    status_label.set_text(
-        "Status: Benchmark started."
-    )
+    status_label.set_text("Status: Benchmark started.")
 
 
 def create_duration_input():

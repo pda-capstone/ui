@@ -63,9 +63,7 @@ def validate_power_mode(power_mode):
         ValueError: If the supplied power mode is unsupported.
     """
     if power_mode not in VALID_POWER_MODES:
-        raise ValueError(
-            f"Unsupported power mode: {power_mode}"
-        )
+        raise ValueError(f"Unsupported power mode: {power_mode}")
 
 
 def validate_settings(settings):
@@ -76,16 +74,12 @@ def validate_settings(settings):
         ValueError: If the configuration structure is invalid.
     """
     if not isinstance(settings, dict):
-        raise ValueError(
-            "The settings file must contain a JSON object."
-        )
+        raise ValueError("The settings file must contain a JSON object.")
 
     power_mode = settings.get("power_mode")
 
     if power_mode is None:
-        raise ValueError(
-            "The settings file does not contain power_mode."
-        )
+        raise ValueError("The settings file does not contain power_mode.")
 
     validate_power_mode(power_mode)
 

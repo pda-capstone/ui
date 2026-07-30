@@ -146,9 +146,7 @@ def create_diagnostics_panel(diagnostics_revealer, power_backend):
     panel_box.set_margin_start(24)
     panel_box.set_margin_end(24)
 
-    panel_box.append(
-        create_diagnostics_header(diagnostics_revealer)
-    )
+    panel_box.append(create_diagnostics_header(diagnostics_revealer))
     panel_box.append(create_diagnostics_content(power_backend))
 
     background_box.append(panel_box)
@@ -213,9 +211,7 @@ def create_bottom_action_row(
     button_row.set_margin_end(12)
     button_row.set_margin_bottom(12)
 
-    diagnostics_button = create_diagnostics_button(
-        diagnostics_revealer
-    )
+    diagnostics_button = create_diagnostics_button(diagnostics_revealer)
 
     button_row.append(diagnostics_button)
     button_row.append(settings_button)
@@ -232,9 +228,7 @@ def create_diagnostics_overlay(main_content, power_backend):
     root_overlay.set_vexpand(True)
     root_overlay.set_child(main_content)
 
-    diagnostics_revealer = create_diagnostics_revealer(
-        power_backend
-    )
+    diagnostics_revealer = create_diagnostics_revealer(power_backend)
 
     (
         settings_revealer,

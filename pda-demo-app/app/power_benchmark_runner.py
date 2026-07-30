@@ -18,13 +18,19 @@ from power_backend import BenchmarkRequest, PowerBackend
 
 # Path to the sponsor-provided INA219 sensor script.
 # Adjust if your checkout layout differs.
-INA219_SCRIPT = Path(__file__).parent.parent.parent / \
-    "power" / "hardware" / "ina219" / "ina219_sample.py"
+INA219_SCRIPT = (
+    Path(__file__).parent.parent.parent
+    / "power"
+    / "hardware"
+    / "ina219"
+    / "ina219_sample.py"
+)
 
 CPU_FREQ_PATH = Path("/sys/devices/system/cpu")
 
 
 # ── Governor helpers ──────────────────────────────────────────────────────────
+
 
 def _read_governor() -> str:
     """Return the current governor for cpu0, or empty string if unavailable."""
@@ -63,6 +69,7 @@ def _write_governor(governor: str) -> None:
 
 # ── CSV reader ────────────────────────────────────────────────────────────────
 
+
 def _parse_csv(csv_path: Path) -> dict:
     """
     Parse the CSV the INA219 script produces and return summary stats.
@@ -77,14 +84,14 @@ def _parse_csv(csv_path: Path) -> dict:
             reader = csv.DictReader(f)
             for row in reader:
                 try:
-                    power_mw  = float(row.get("power_mW",  0))
-                    voltage_v = float(row.get("voltage_V",  0))
+                    power_mw = float(row.get("power_mW", 0))
+                    voltage_v = float(row.get("voltage_V", 0))
                     current_ma = float(row.get("current_mA", 0))
                     watts_list.append(power_mw / 1000)
                     voltage_list.append(voltage_v)
                     if current_ma >= 3200:
                         clipped = True
-                except (ValueError, KeyError):
+                except ValueError, KeyError:
                     continue
     except OSError as exc:
         raise RuntimeError(f"Could not read {csv_path}: {exc}") from exc
@@ -96,16 +103,17 @@ def _parse_csv(csv_path: Path) -> dict:
         )
 
     return {
-        "average_watts":   sum(watts_list) / len(watts_list),
-        "min_watts":       min(watts_list),
-        "max_watts":       max(watts_list),
+        "average_watts": sum(watts_list) / len(watts_list),
+        "min_watts": min(watts_list),
+        "max_watts": max(watts_list),
         "average_voltage": sum(voltage_list) / len(voltage_list),
-        "sample_count":    len(watts_list),
-        "clipped":         clipped,
+        "sample_count": len(watts_list),
+        "clipped": clipped,
     }
 
 
 # ── Mock results ──────────────────────────────────────────────────────────────
+
 
 def _mock_result(request: BenchmarkRequest) -> dict:
     """
@@ -122,29 +130,31 @@ def _mock_result(request: BenchmarkRequest) -> dict:
     avg = base * factor
 
     return {
-        "average_watts":   round(avg + random.uniform(-0.05, 0.05), 2),
-        "min_watts":       round(avg * 0.88, 2),
-        "max_watts":       round(avg * 1.12, 2),
+        "average_watts": round(avg + random.uniform(-0.05, 0.05), 2),
+        "min_watts": round(avg * 0.88, 2),
+        "max_watts": round(avg * 1.12, 2),
         "average_voltage": 4.97,
-        "sample_count":    request.duration_seconds * 4,
-        "clipped":         False,
+        "sample_count": request.duration_seconds * 4,
+        "clipped": False,
     }
 
 
 def _write_mock_csv(csv_path: Path, stats: dict, duration: int) -> None:
     """Write simulated readings to a CSV so the output file actually exists."""
     import random
+
     with open(csv_path, "w", newline="") as f:
         writer = csv.writer(f)
         writer.writerow(["voltage_V", "current_mA", "power_mW"])
         for _ in range(stats["sample_count"]):
-            v  = stats["average_voltage"]
-            w  = stats["average_watts"] + random.uniform(-0.05, 0.05)
+            v = stats["average_voltage"]
+            w = stats["average_watts"] + random.uniform(-0.05, 0.05)
             ma = (w / v) * 1000
             writer.writerow([f"{v:.4f}", f"{ma:.2f}", f"{w * 1000:.2f}"])
 
 
 # ── Background worker ─────────────────────────────────────────────────────────
+
 
 def _benchmark_thread(request: BenchmarkRequest, status_cb) -> None:
     """
@@ -180,9 +190,12 @@ def _benchmark_thread(request: BenchmarkRequest, status_cb) -> None:
         if INA219_SCRIPT.exists():
             subprocess.run(
                 [
-                    "python3", str(INA219_SCRIPT),
-                    "--seconds", str(request.duration_seconds),
-                    "--out",     str(csv_path),
+                    "python3",
+                    str(INA219_SCRIPT),
+                    "--seconds",
+                    str(request.duration_seconds),
+                    "--out",
+                    str(csv_path),
                 ],
                 check=True,
             )
@@ -196,7 +209,9 @@ def _benchmark_thread(request: BenchmarkRequest, status_cb) -> None:
 
         # 3. Report results ─────────────────────────────────────────────────
         clip_note = (
-            "\n⚠ Reading clipped at 3.2 A sensor limit." if stats["clipped"] else ""
+            "\n⚠ Reading clipped at 3.2 A sensor limit."
+            if stats["clipped"]
+            else ""
         )
         update(
             f"Status: Complete.\n"
@@ -225,6 +240,7 @@ def _benchmark_thread(request: BenchmarkRequest, status_cb) -> None:
 
 # ── Public backend ────────────────────────────────────────────────────────────
 
+
 class LivePowerBackend(PowerBackend):
     """
     Real power backend. Subclasses PowerBackend so it plugs straight
@@ -251,9 +267,11 @@ class LivePowerBackend(PowerBackend):
         The panel label updates automatically when the thread finishes.
         """
         if self._running:
-            self._status_cb("Status: A benchmark is already running. Please wait.")
+            self._status_cb(
+                "Status: A benchmark is already running. Please wait."
+            )
             return
-        self._running = True 
+        self._running = True
 
         thread = threading.Thread(
             target=_benchmark_thread,
@@ -272,7 +290,7 @@ class LivePowerBackend(PowerBackend):
         This is optional — without it, updates print to the terminal.
         """
         self._status_cb = label.set_text
-    
+
     def _run_and_clear(self, request):  # ADD THIS METHOD
         try:
             _benchmark_thread(request, self._status_cb)
