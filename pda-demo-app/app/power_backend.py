@@ -1,14 +1,14 @@
 # power_backend.py
-# Defines the optional power integration interface for the PDA GTK demo.
+# Provides the UI-facing power service facade for the PDA GTK demo.
 # Owner: Jiesui
 # Last updated: August 2026
 
 """
-Optional power backend interface for the PDA GTK demo.
+Power service facade for the PDA GTK demo.
 
-Power-mode requests are translated into CPUfreq governors and delegated
-to GovernorController. Benchmark execution remains unavailable until the
-benchmark runner interface is connected.
+The GTK layer uses one PowerBackend instance. Internally, the backend delegates
+CPUfreq operations to GovernorController and benchmark lifecycle work to
+PowerBenchmarkRunner.
 """
 
 from dataclasses import dataclass
@@ -20,6 +20,10 @@ from app.governor_controller import (
 from app.governor_controller import GovernorController
 from app.governor_controller import (
     GovernorUnavailableError as ControllerGovernorUnavailableError,
+)
+from app.power_benchmark_runner import (
+    PowerBenchmarkRunner,
+    PowerBenchmarkRunnerError,
 )
 from app.power_modes import get_power_mode_definition
 
@@ -62,15 +66,19 @@ class BenchmarkRequest:
 
 class PowerBackend:
     """
-    Coordinate power-mode requests and future benchmark execution.
+    Provide one UI-facing service for power settings and benchmarks.
     """
 
-    def __init__(self, governor_controller=None):
+    def __init__(
+        self,
+        governor_controller=None,
+        benchmark_runner=None,
+    ):
         """
-        Initialize with an optional governor controller.
+        Initialize the shared controller and benchmark runner.
 
-        A GovernorController instance can be supplied directly. For backward
-        compatibility, a low-level governor implementation can also be
+        A GovernorController can be supplied directly. For compatibility with
+        existing tests, a low-level governor implementation can also be
         supplied and will be wrapped by GovernorController.
         """
         if governor_controller is None:
@@ -82,20 +90,30 @@ class PowerBackend:
                 controller=governor_controller,
             )
 
+        if benchmark_runner is None:
+            self._benchmark_runner = PowerBenchmarkRunner(
+                self._governor_controller,
+            )
+        else:
+            self._benchmark_runner = benchmark_runner
+
     def is_available(self):
         """
-        Return whether benchmark execution is connected.
-
-        Power-mode control is available independently through
-        apply_power_mode().
+        Return whether live or simulated benchmark execution is available.
         """
-        return False
+        return self._benchmark_runner.is_available()
 
     def get_unavailable_reason(self):
         """
-        Explain why benchmark actions cannot currently run.
+        Explain why benchmark execution is unavailable.
         """
-        return "Power benchmark integration is not available in this build."
+        return self._benchmark_runner.get_unavailable_reason()
+
+    def is_benchmark_running(self):
+        """
+        Return whether a benchmark is currently active.
+        """
+        return self._benchmark_runner.is_running()
 
     def get_governor_for_power_mode(self, power_mode):
         """
@@ -165,6 +183,11 @@ class PowerBackend:
             GovernorUnavailableError: If CPUfreq data cannot be accessed.
             GovernorApplyError: If the governor cannot be applied or verified.
         """
+        if self.is_benchmark_running():
+            raise PowerBackendError(
+                "A power mode cannot be changed while a benchmark is running."
+            )
+
         requested_governor = self.get_governor_for_power_mode(power_mode)
 
         return self._set_and_verify_governor(requested_governor)
@@ -176,10 +199,32 @@ class PowerBackend:
         Returns:
             str: The restored active governor.
         """
+        if self.is_benchmark_running():
+            raise PowerBackendError(
+                "The governor cannot be restored through the settings "
+                "service while a benchmark is running."
+            )
+
         return self._set_and_verify_governor(governor)
 
-    def start_benchmark(self, _request):
+    def start_benchmark(
+        self,
+        request,
+        status_callback=None,
+    ):
         """
-        Report that benchmark execution is not connected yet.
+        Submit one benchmark request to the internal runner.
+
+        Returns:
+            threading.Thread: The started benchmark worker.
+
+        Raises:
+            PowerBackendError: If the benchmark cannot be started.
         """
-        raise PowerBackendError(self.get_unavailable_reason())
+        try:
+            return self._benchmark_runner.start(
+                request,
+                status_callback,
+            )
+        except PowerBenchmarkRunnerError as error:
+            raise PowerBackendError(str(error)) from error

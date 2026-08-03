@@ -1,7 +1,7 @@
 # settings_overlay.py
 # Builds the power mode settings overlay for the PDA GTK demo.
 # Owner: Jiesui
-# Last updated: July 2026
+# Last updated: August 2026
 
 """
 Power mode settings overlay for the PDA GTK demo.
@@ -235,6 +235,12 @@ def on_save_settings_clicked(
     systems, the selected governor is applied after the JSON write
     succeeds.
     """
+    if power_backend.is_benchmark_running():
+        status_label.set_text(
+            "A power benchmark is currently running.\n"
+            "Wait for it to finish before changing the power mode."
+        )
+        return
     power_mode = get_selected_power_mode(mode_buttons)
     display_text = get_power_mode_display_text(power_mode)
 

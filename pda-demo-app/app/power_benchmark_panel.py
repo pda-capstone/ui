@@ -1,7 +1,7 @@
 # power_benchmark_panel.py
 # Builds the power benchmark configuration panel for the PDA GTK demo.
 # Owner: Jiesui
-# Last updated: July 2026
+# Last updated: August 2026
 
 """
 Power benchmark panel for the PDA GTK demo.
@@ -9,9 +9,9 @@ Power benchmark panel for the PDA GTK demo.
 The panel allows the user to select a CPU governor and workload,
 configure the benchmark duration, and choose a CSV output filename.
 
-The real benchmark runner is not connected yet. Until the power
-measurement script interface is finalized, the Start Benchmark button
-validates the selected settings and displays a placeholder status.
+The panel submits validated requests through PowerBackend. The backend
+runs live INA219 collection when the sampling script is available and can
+use clearly labeled simulated data for development systems.
 """
 
 from pathlib import Path
@@ -21,22 +21,19 @@ import gi
 gi.require_version("Gtk", "4.0")
 from gi.repository import Gtk
 
-from app.power_backend import BenchmarkRequest
+from app.power_backend import (
+    BenchmarkRequest,
+    PowerBackendError,
+)
 
+from app.power_modes import POWER_MODE_DEFINITIONS
 
-GOVERNOR_OPTIONS = (
+GOVERNOR_OPTIONS = tuple(
     {
-        "id": "schedutil",
-        "label": "schedutil",
-    },
-    {
-        "id": "ondemand",
-        "label": "ondemand",
-    },
-    {
-        "id": "powersave",
-        "label": "powersave",
-    },
+        "id": definition.governor,
+        "label": (f"{definition.label} ({definition.governor})"),
+    }
+    for definition in POWER_MODE_DEFINITIONS
 )
 
 WORKLOAD_OPTIONS = (
@@ -202,9 +199,14 @@ def on_start_benchmark_clicked(
         )
         return
 
+    status_label.set_text("Status: Starting benchmark…")
+
     try:
-        power_backend.start_benchmark(benchmark_request)
-    except RuntimeError as error:
+        power_backend.start_benchmark(
+            benchmark_request,
+            status_label.set_text,
+        )
+    except PowerBackendError as error:
         status_label.set_text(f"Status: Could not start benchmark — {error}")
         return
 
@@ -336,8 +338,9 @@ def create_power_benchmark_panel(power_backend):
     title_label.add_css_class("title-3")
 
     description_label = create_left_aligned_label(
-        "Configure a repeatable power measurement test. Raw benchmark "
-        "samples will eventually be written to the selected CSV file."
+        "Configure a repeatable power measurement test. Live INA219 "
+        "samples, or clearly labeled development samples, are written "
+        "to the selected CSV file."
     )
 
     governor_dropdown = create_dropdown(GOVERNOR_OPTIONS)

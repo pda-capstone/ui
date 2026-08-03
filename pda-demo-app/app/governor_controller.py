@@ -71,8 +71,7 @@ class GovernorController:
         except Exception as error:
             self._import_error = error
             raise GovernorUnavailableError(
-                "The CPU governor implementation could not be loaded: "
-                f"{error}"
+                f"The CPU governor implementation could not be loaded: {error}"
             ) from error
 
         return self._controller
