@@ -1,7 +1,7 @@
 # diagnostics_overlay.py
 # Builds the diagnostics overlay scaffold for the PDA GTK demo.
 # Owner: Jiesui
-# Last updated: July 2026
+# Last updated: August 2026
 
 """
 Diagnostics overlay UI for the PDA GTK demo.
@@ -17,7 +17,6 @@ from gi.repository import Gtk
 
 from app.power_benchmark_panel import create_power_benchmark_panel
 from app.settings_overlay import create_settings_controls
-from app.power_backend import PowerBackend
 
 
 def create_left_aligned_label(text):
@@ -96,9 +95,9 @@ def create_diagnostics_content(power_backend):
     content_box.set_hexpand(True)
 
     intro_label = create_left_aligned_label(
-        "Configure development and measurement tools for the PDA demo. "
-        "Benchmark execution will be connected after the power script "
-        "interface and permissions are finalized."
+        "Configure power measurement tools for the PDA demo. "
+        "The benchmark uses INA219 samples when the power script is "
+        "available and simulated development data otherwise."
     )
 
     content_box.append(intro_label)

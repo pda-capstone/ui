@@ -87,7 +87,7 @@ def parse_benchmark_csv(csv_path):
                     power_mw = float(row["power_mW"])
                     voltage_v = float(row["voltage_V"])
                     current_ma = float(row["current_mA"])
-                except KeyError, TypeError, ValueError:
+                except (KeyError, TypeError, ValueError):
                     continue
 
                 watts_values.append(power_mw / 1000.0)
@@ -464,8 +464,8 @@ class PowerBenchmarkRunner:
         if use_mock:
             self._post_status(
                 status_callback,
-                "Status: Running simulated "
-                f"{request.workload} workload for "
+                "Status: Generating simulated "
+                f"{request.workload} dataset representing "
                 f"{request.duration_seconds} seconds…",
             )
 
@@ -481,7 +481,8 @@ class PowerBenchmarkRunner:
 
         self._post_status(
             status_callback,
-            f"Status: Running {request.workload} workload for "
+            f"Status: Measuring the prepared {request.workload} "
+            "condition for "
             f"{request.duration_seconds} seconds…",
         )
 
