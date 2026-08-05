@@ -22,6 +22,7 @@ from app.daemon_status_panel import create_daemon_status_panel
 from app.click_test_panel import create_click_test_panel
 from app.diagnostics_overlay import create_diagnostics_overlay
 from app.power_backend import PowerBackend
+from app.module_state import connect_to_daemon
 
 
 def activate(app, power_backend):
@@ -72,6 +73,10 @@ def activate(app, power_backend):
         )
     )
     window.present()
+
+    # Start the D-Bus connection after the window is visible so the UI can
+    # receive live accessory updates from the daemon.
+    connect_to_daemon()
 
 
 def main():

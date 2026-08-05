@@ -16,7 +16,11 @@ import gi
 gi.require_version("Gtk", "4.0")
 from gi.repository import Gtk
 
-from app.module_state import get_status_bar_text, get_module_detail_lines
+from app.module_state import (
+    get_status_bar_text,
+    get_module_detail_lines,
+    register_state_change_callback,
+)
 
 
 def create_left_aligned_label(text):
@@ -28,7 +32,20 @@ def create_left_aligned_label(text):
     return label
 
 
-def on_status_bar_clicked(button, revealer):
+def _update_status_panel(status_bar, status_details, expanded):
+    status_bar.set_label(get_status_bar_text(expanded))
+
+    child = status_details.get_first_child()
+    while child is not None:
+        next_child = child.get_next_sibling()
+        status_details.remove(child)
+        child = next_child
+
+    for line in get_module_detail_lines():
+        status_details.append(create_left_aligned_label(line))
+
+
+def on_status_bar_clicked(button, revealer, status_details):
     """
     Toggle the expandable status panel.
 
@@ -38,7 +55,7 @@ def on_status_bar_clicked(button, revealer):
     expanded = not revealer.get_reveal_child()
     revealer.set_reveal_child(expanded)
 
-    button.set_label(get_status_bar_text(expanded))
+    _update_status_panel(button, status_details, expanded)
 
 
 def create_daemon_status_panel():
@@ -66,9 +83,18 @@ def create_daemon_status_panel():
     status_revealer.set_reveal_child(False)
     status_revealer.set_child(status_details)
 
-    status_bar.connect("clicked", on_status_bar_clicked, status_revealer)
+    status_bar.connect(
+        "clicked", on_status_bar_clicked, status_revealer, status_details
+    )
 
     panel.append(status_bar)
     panel.append(status_revealer)
+
+    def on_state_change():
+        expanded = status_revealer.get_reveal_child()
+        _update_status_panel(status_bar, status_details, expanded)
+
+    register_state_change_callback(on_state_change)
+    _update_status_panel(status_bar, status_details, False)
 
     return panel
