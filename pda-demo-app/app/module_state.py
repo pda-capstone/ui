@@ -76,10 +76,7 @@ def _find_bus_address_file():
 
 def get_connected_module_count():
     """Count connected modules from the current module state list."""
-    return sum(
-        1 for module in MODULES
-        if module.get("state") == "connected"
-    )
+    return sum(1 for module in MODULES if module.get("state") == "connected")
 
 
 def get_status_bar_text(expanded=False):
@@ -116,7 +113,7 @@ def _module_from_variant(variant):
         "name": name,
         "role": category,
         "state": state,
-        "power": power
+        "power": power,
     }
 
 
@@ -158,8 +155,15 @@ def _remove_module(devpath):
     MODULES = [m for m in MODULES if m.get("devpath") != devpath]
 
 
-def _on_daemon_signal(connection, sender_name, object_path, interface_name,
-                      signal_name, parameters, user_data):
+def _on_daemon_signal(
+    connection,
+    sender_name,
+    object_path,
+    interface_name,
+    signal_name,
+    parameters,
+    user_data,
+):
     if signal_name == "ModuleAttached":
         if parameters is not None and _variant_child_count(parameters) >= 7:
             module = {
@@ -167,7 +171,7 @@ def _on_daemon_signal(connection, sender_name, object_path, interface_name,
                 "name": parameters.get_child_value(3).get_string(),
                 "role": parameters.get_child_value(4).get_string(),
                 "state": "connected",
-                "power": parameters.get_child_value(5).get_uint32()
+                "power": parameters.get_child_value(5).get_uint32(),
             }
             _add_or_update_module(module)
             _set_daemon_status(True)
@@ -198,14 +202,25 @@ def _connect_signal(interface_name, member):
         None,
         Gio.DBusSignalFlags.NONE,
         _on_daemon_signal,
-        None
+        None,
     )
     _SUBSCRIPTIONS.append(subscription_id)
 
 
-def _on_name_owner_changed(connection, sender_name, object_path, interface_name,
-                           signal_name, parameters, user_data):
-    if parameters is None or signal_name != "NameOwnerChanged" or _variant_child_count(parameters) != 3:
+def _on_name_owner_changed(
+    connection,
+    sender_name,
+    object_path,
+    interface_name,
+    signal_name,
+    parameters,
+    user_data,
+):
+    if (
+        parameters is None
+        or signal_name != "NameOwnerChanged"
+        or _variant_child_count(parameters) != 3
+    ):
         return True
 
     name = parameters.get_child_value(0).get_string()
@@ -238,7 +253,7 @@ def _connect_name_owner_watch():
         None,
         Gio.DBusSignalFlags.NONE,
         _on_name_owner_changed,
-        None
+        None,
     )
 
 
@@ -271,11 +286,7 @@ def refresh_module_list():
 
     try:
         reply = _PROXY.call_sync(
-            "ListModules",
-            None,
-            Gio.DBusCallFlags.NONE,
-            -1,
-            None
+            "ListModules", None, Gio.DBusCallFlags.NONE, -1, None
         )
         new_modules = _parse_list_modules_reply(reply)
         if new_modules:
@@ -294,11 +305,15 @@ def connect_to_daemon():
     """Connect to the hot-swap daemon over D-Bus and subscribe to signals."""
     global _PROXY, _CONNECTION
     try:
-        bus_address = os.environ.get('DBUS_SYSTEM_BUS_ADDRESS') or _find_bus_address_file()
+        bus_address = (
+            os.environ.get("DBUS_SYSTEM_BUS_ADDRESS")
+            or _find_bus_address_file()
+        )
         if bus_address:
             connection = Gio.DBusConnection.new_for_address_sync(
                 bus_address,
-                Gio.DBusConnectionFlags.AUTHENTICATION_CLIENT | Gio.DBusConnectionFlags.MESSAGE_BUS_CONNECTION,
+                Gio.DBusConnectionFlags.AUTHENTICATION_CLIENT
+                | Gio.DBusConnectionFlags.MESSAGE_BUS_CONNECTION,
                 None,
             )
             _PROXY = Gio.DBusProxy.new_sync(
@@ -350,7 +365,9 @@ def get_module_detail_lines():
             module_role = module.get("role") or "Unknown type"
             module_state = module.get("state", "unknown")
             power = module.get("power")
-            power_text = f" · {power} mA" if isinstance(power, int) and power > 0 else ""
+            power_text = (
+                f" · {power} mA" if isinstance(power, int) and power > 0 else ""
+            )
             lines.append(
                 f"{module_name}: {module_state} · {module_role}{power_text}"
             )

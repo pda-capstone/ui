@@ -11,29 +11,31 @@ import threading
 import time
 import gi
 
-gi.require_version('Gio', '2.0')
+gi.require_version("Gio", "2.0")
 from gi.repository import Gio, GLib
 
-DBUS_BUS_NAME = 'org.postmarketos.HotSwap'
-DBUS_OBJECT_PATH = '/org/postmarketos/HotSwap'
-DBUS_INTERFACE = 'org.postmarketos.HotSwap'
+DBUS_BUS_NAME = "org.postmarketos.HotSwap"
+DBUS_OBJECT_PATH = "/org/postmarketos/HotSwap"
+DBUS_INTERFACE = "org.postmarketos.HotSwap"
 
 # Fake test device properties. The daemon starts with no attached device.
 FAKE_DEVICE = {
-    'devpath': '/sys/devices/test/test_device0',
-    'vendor_id': '1234',
-    'product_id': '5678',
-    'name': 'test_flashdrive',
-    'category': 'storage',
-    'state': 'connected',
-    'power': 500,
-    'speed': 480,
-    'attached': False,
+    "devpath": "/sys/devices/test/test_device0",
+    "vendor_id": "1234",
+    "product_id": "5678",
+    "name": "test_flashdrive",
+    "category": "storage",
+    "state": "connected",
+    "power": 500,
+    "speed": 480,
+    "attached": False,
 }
 
-BUS_ADDRESS_ENV = 'DBUS_SYSTEM_BUS_ADDRESS'
-BUS_ADDRESS_FILE = '/tmp/hotswap_bus_address'
-CONTROL_SOCKET = os.environ.get('FAKE_HOTSWAPD_CONTROL_SOCKET', '/tmp/fake_hotswapd-control.sock')
+BUS_ADDRESS_ENV = "DBUS_SYSTEM_BUS_ADDRESS"
+BUS_ADDRESS_FILE = "/tmp/hotswap_bus_address"
+CONTROL_SOCKET = os.environ.get(
+    "FAKE_HOTSWAPD_CONTROL_SOCKET", "/tmp/fake_hotswapd-control.sock"
+)
 control_running = True
 
 introspection_xml = f'''
@@ -79,7 +81,7 @@ hotswap_obj = None
 
 def write_bus_address(bus_address):
     try:
-        with open(BUS_ADDRESS_FILE, 'w') as handle:
+        with open(BUS_ADDRESS_FILE, "w") as handle:
             handle.write(bus_address)
     except OSError:
         pass
@@ -96,55 +98,55 @@ def _stop_main_loop():
 def _control_command(command):
     command = command.strip()
     if not command:
-        return 'ok\n'
+        return "ok\n"
 
     parts = command.split()
     cmd = parts[0].lower()
 
     if hotswap_obj is None:
-        return 'daemon not ready\n'
+        return "daemon not ready\n"
 
-    if cmd == 'attach':
-        if FAKE_DEVICE['attached']:
-            return 'already attached\n'
-        FAKE_DEVICE['attached'] = True
-        print('fake device attached')
+    if cmd == "attach":
+        if FAKE_DEVICE["attached"]:
+            return "already attached\n"
+        FAKE_DEVICE["attached"] = True
+        print("fake device attached")
         hotswap_obj.emit_module_attached()
         hotswap_obj.emit_power_changed()
-        return 'attached\n'
+        return "attached\n"
 
-    if cmd == 'detach':
-        if not FAKE_DEVICE['attached']:
-            return 'already detached\n'
-        FAKE_DEVICE['attached'] = False
-        print('fake device detached')
+    if cmd == "detach":
+        if not FAKE_DEVICE["attached"]:
+            return "already detached\n"
+        FAKE_DEVICE["attached"] = False
+        print("fake device detached")
         hotswap_obj.emit_module_detached()
         hotswap_obj.emit_power_changed()
-        return 'detached\n'
+        return "detached\n"
 
-    if cmd == 'power' and len(parts) == 2:
+    if cmd == "power" and len(parts) == 2:
         try:
             power = int(parts[1])
         except ValueError:
-            return 'invalid power\n'
-        FAKE_DEVICE['power'] = power
-        if FAKE_DEVICE['attached']:
-            print(f'fake device power changed to {power}')
+            return "invalid power\n"
+        FAKE_DEVICE["power"] = power
+        if FAKE_DEVICE["attached"]:
+            print(f"fake device power changed to {power}")
             hotswap_obj.emit_power_changed()
-        return f'power set to {power}\n'
+        return f"power set to {power}\n"
 
-    if cmd == 'status':
-        state = 'attached' if FAKE_DEVICE['attached'] else 'detached'
-        return f'{state}\n'
+    if cmd == "status":
+        state = "attached" if FAKE_DEVICE["attached"] else "detached"
+        return f"{state}\n"
 
-    if cmd == 'help':
-        return 'commands: attach, detach, power <mA>, status, quit\n'
+    if cmd == "help":
+        return "commands: attach, detach, power <mA>, status, quit\n"
 
-    if cmd == 'quit':
+    if cmd == "quit":
         GLib.idle_add(_stop_main_loop)
-        return 'quitting\n'
+        return "quitting\n"
 
-    return 'unknown command\n'
+    return "unknown command\n"
 
 
 def _serve_control_socket():
@@ -157,7 +159,7 @@ def _serve_control_socket():
     server = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
     server.bind(CONTROL_SOCKET)
     server.listen(1)
-    print(f'Fake HotSwap control socket listening on {CONTROL_SOCKET}')
+    print(f"Fake HotSwap control socket listening on {CONTROL_SOCKET}")
     server.settimeout(1.0)
 
     while control_running:
@@ -169,21 +171,21 @@ def _serve_control_socket():
             break
 
         with client:
-            data = client.recv(1024).decode('utf-8')
+            data = client.recv(1024).decode("utf-8")
             if not data:
                 continue
             command = data.strip()
-            result = {'value': None}
+            result = {"value": None}
 
             def handle():
-                result['value'] = _control_command(command)
+                result["value"] = _control_command(command)
                 return False
 
             GLib.idle_add(handle)
-            while result['value'] is None:
+            while result["value"] is None:
                 time.sleep(0.01)
 
-            client.sendall(result['value'].encode('utf-8'))
+            client.sendall(result["value"].encode("utf-8"))
 
     server.close()
     try:
@@ -202,15 +204,15 @@ def _register_hotswap_object(conn):
         None,
         None,
     )
-    print(f'Fake HotSwap daemon registered on {DBUS_BUS_NAME}')
+    print(f"Fake HotSwap daemon registered on {DBUS_BUS_NAME}")
 
 
 def on_name_acquired(connection, name):
-    print(f'Bus name acquired: {name}')
+    print(f"Bus name acquired: {name}")
 
 
 def on_name_lost(connection, name):
-    print(f'Failed to acquire bus name: {name}')
+    print(f"Failed to acquire bus name: {name}")
     if loop is not None:
         loop.quit()
 
@@ -221,68 +223,84 @@ class HotswapObject:
         self.node_info = Gio.DBusNodeInfo.new_for_xml(introspection_xml)
         self.interface_info = self.node_info.lookup_interface(DBUS_INTERFACE)
 
-    def handle_method_call(self, connection, sender, object_path, interface_name,
-                           method_name, parameters, invocation):
-        if method_name == 'ListModules':
+    def handle_method_call(
+        self,
+        connection,
+        sender,
+        object_path,
+        interface_name,
+        method_name,
+        parameters,
+        invocation,
+    ):
+        if method_name == "ListModules":
             self.handle_list_modules(invocation)
-        elif method_name == 'GetModuleInfo':
+        elif method_name == "GetModuleInfo":
             self.handle_get_module_info(invocation, parameters)
-        elif method_name == 'GetTotalPowerDraw':
+        elif method_name == "GetTotalPowerDraw":
             self.handle_get_total_power_draw(invocation)
         else:
-            invocation.return_dbus_error('org.freedesktop.DBus.Error.UnknownMethod',
-                                         f'Unknown method: {method_name}')
+            invocation.return_dbus_error(
+                "org.freedesktop.DBus.Error.UnknownMethod",
+                f"Unknown method: {method_name}",
+            )
 
     def handle_list_modules(self, invocation):
-        if not FAKE_DEVICE['attached']:
-            result = GLib.Variant('(a(ssssu))', ([],))
+        if not FAKE_DEVICE["attached"]:
+            result = GLib.Variant("(a(ssssu))", ([],))
             invocation.return_value(result)
             return
 
-        module = GLib.Variant('(ssssu)', (
-            FAKE_DEVICE['devpath'],
-            FAKE_DEVICE['name'],
-            FAKE_DEVICE['category'],
-            FAKE_DEVICE['state'],
-            FAKE_DEVICE['power'],
-        ))
-        result = GLib.Variant('(a(ssssu))', ([module],))
+        module = GLib.Variant(
+            "(ssssu)",
+            (
+                FAKE_DEVICE["devpath"],
+                FAKE_DEVICE["name"],
+                FAKE_DEVICE["category"],
+                FAKE_DEVICE["state"],
+                FAKE_DEVICE["power"],
+            ),
+        )
+        result = GLib.Variant("(a(ssssu))", ([module],))
         invocation.return_value(result)
 
     def handle_get_module_info(self, invocation, parameters):
         if parameters is None or parameters.get_n_children() < 1:
-            invocation.return_dbus_error('org.freedesktop.DBus.Error.InvalidArgs',
-                                         'Expected devpath string')
+            invocation.return_dbus_error(
+                "org.freedesktop.DBus.Error.InvalidArgs",
+                "Expected devpath string",
+            )
             return
 
         devpath = parameters.get_child_value(0).get_string()
-        if devpath != FAKE_DEVICE['devpath'] or not FAKE_DEVICE['attached']:
-            invocation.return_dbus_error('org.freedesktop.DBus.Error.InvalidArgs',
-                                         'Device not found')
+        if devpath != FAKE_DEVICE["devpath"] or not FAKE_DEVICE["attached"]:
+            invocation.return_dbus_error(
+                "org.freedesktop.DBus.Error.InvalidArgs", "Device not found"
+            )
             return
 
         props = {
-            'devpath': GLib.Variant('s', FAKE_DEVICE['devpath']),
-            'syspath': GLib.Variant('s', '/sys/devices/test/test_device0'),
-            'vendor_id': GLib.Variant('s', FAKE_DEVICE['vendor_id']),
-            'product_id': GLib.Variant('s', FAKE_DEVICE['product_id']),
-            'vendor_name': GLib.Variant('s', 'TestVendor'),
-            'product_name': GLib.Variant('s', FAKE_DEVICE['name']),
-            'serial': GLib.Variant('s', 'TEST123'),
-            'category': GLib.Variant('s', FAKE_DEVICE['category']),
-            'state': GLib.Variant('s', FAKE_DEVICE['state']),
-            'max_power_ma': GLib.Variant('u', FAKE_DEVICE['power']),
-            'speed_mbps': GLib.Variant('u', FAKE_DEVICE['speed']),
-            'self_powered': GLib.Variant('b', False),
-            'has_pd': GLib.Variant('b', False),
-            'mount_count': GLib.Variant('u', 0),
+            "devpath": GLib.Variant("s", FAKE_DEVICE["devpath"]),
+            "syspath": GLib.Variant("s", "/sys/devices/test/test_device0"),
+            "vendor_id": GLib.Variant("s", FAKE_DEVICE["vendor_id"]),
+            "product_id": GLib.Variant("s", FAKE_DEVICE["product_id"]),
+            "vendor_name": GLib.Variant("s", "TestVendor"),
+            "product_name": GLib.Variant("s", FAKE_DEVICE["name"]),
+            "serial": GLib.Variant("s", "TEST123"),
+            "category": GLib.Variant("s", FAKE_DEVICE["category"]),
+            "state": GLib.Variant("s", FAKE_DEVICE["state"]),
+            "max_power_ma": GLib.Variant("u", FAKE_DEVICE["power"]),
+            "speed_mbps": GLib.Variant("u", FAKE_DEVICE["speed"]),
+            "self_powered": GLib.Variant("b", False),
+            "has_pd": GLib.Variant("b", False),
+            "mount_count": GLib.Variant("u", 0),
         }
-        result = GLib.Variant('(a{sv})', (props,))
+        result = GLib.Variant("(a{sv})", (props,))
         invocation.return_value(result)
 
     def handle_get_total_power_draw(self, invocation):
-        total_draw = FAKE_DEVICE['power'] if FAKE_DEVICE['attached'] else 0
-        result = GLib.Variant('(u)', (total_draw,))
+        total_draw = FAKE_DEVICE["power"] if FAKE_DEVICE["attached"] else 0
+        result = GLib.Variant("(u)", (total_draw,))
         invocation.return_value(result)
 
     def emit_module_attached(self):
@@ -290,16 +308,19 @@ class HotswapObject:
             None,
             DBUS_OBJECT_PATH,
             DBUS_INTERFACE,
-            'ModuleAttached',
-            GLib.Variant('(sssssuu)', (
-                FAKE_DEVICE['devpath'],
-                FAKE_DEVICE['vendor_id'],
-                FAKE_DEVICE['product_id'],
-                FAKE_DEVICE['name'],
-                FAKE_DEVICE['category'],
-                FAKE_DEVICE['power'],
-                FAKE_DEVICE['speed'],
-            ))
+            "ModuleAttached",
+            GLib.Variant(
+                "(sssssuu)",
+                (
+                    FAKE_DEVICE["devpath"],
+                    FAKE_DEVICE["vendor_id"],
+                    FAKE_DEVICE["product_id"],
+                    FAKE_DEVICE["name"],
+                    FAKE_DEVICE["category"],
+                    FAKE_DEVICE["power"],
+                    FAKE_DEVICE["speed"],
+                ),
+            ),
         )
 
     def emit_module_detached(self):
@@ -307,25 +328,31 @@ class HotswapObject:
             None,
             DBUS_OBJECT_PATH,
             DBUS_INTERFACE,
-            'ModuleDetached',
-            GLib.Variant('(ssb)', (
-                FAKE_DEVICE['devpath'],
-                FAKE_DEVICE['name'],
-                False,
-            ))
+            "ModuleDetached",
+            GLib.Variant(
+                "(ssb)",
+                (
+                    FAKE_DEVICE["devpath"],
+                    FAKE_DEVICE["name"],
+                    False,
+                ),
+            ),
         )
 
     def emit_power_changed(self):
-        device_count = 1 if FAKE_DEVICE['attached'] else 0
+        device_count = 1 if FAKE_DEVICE["attached"] else 0
         self.connection.emit_signal(
             None,
             DBUS_OBJECT_PATH,
             DBUS_INTERFACE,
-            'PowerChanged',
-            GLib.Variant('(uu)', (
-                FAKE_DEVICE['power'],
-                device_count,
-            ))
+            "PowerChanged",
+            GLib.Variant(
+                "(uu)",
+                (
+                    FAKE_DEVICE["power"],
+                    device_count,
+                ),
+            ),
         )
 
 
@@ -334,16 +361,22 @@ def main():
     loop = GLib.MainLoop()
     bus_address = os.environ.get(BUS_ADDRESS_ENV)
     if not bus_address:
-        print(f'{BUS_ADDRESS_ENV} must be set to a valid D-Bus address', file=sys.stderr)
+        print(
+            f"{BUS_ADDRESS_ENV} must be set to a valid D-Bus address",
+            file=sys.stderr,
+        )
         return 1
 
     connection = Gio.DBusConnection.new_for_address_sync(
         bus_address,
-        Gio.DBusConnectionFlags.AUTHENTICATION_CLIENT | Gio.DBusConnectionFlags.MESSAGE_BUS_CONNECTION,
+        Gio.DBusConnectionFlags.AUTHENTICATION_CLIENT
+        | Gio.DBusConnectionFlags.MESSAGE_BUS_CONNECTION,
         None,
     )
     if connection is None:
-        print(f'Failed to connect to bus address: {bus_address}', file=sys.stderr)
+        print(
+            f"Failed to connect to bus address: {bus_address}", file=sys.stderr
+        )
         return 1
 
     write_bus_address(bus_address)
@@ -356,7 +389,7 @@ def main():
         on_name_lost,
     )
     if name_owner_id == 0:
-        print('Failed to own bus name on connection', file=sys.stderr)
+        print("Failed to own bus name on connection", file=sys.stderr)
         return 1
 
     control_thread = threading.Thread(target=_serve_control_socket, daemon=True)
@@ -370,5 +403,5 @@ def main():
     return 0
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     raise SystemExit(main())

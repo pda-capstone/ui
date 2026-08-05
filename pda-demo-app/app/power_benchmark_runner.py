@@ -87,7 +87,7 @@ def parse_benchmark_csv(csv_path):
                     power_mw = float(row["power_mW"])
                     voltage_v = float(row["voltage_V"])
                     current_ma = float(row["current_mA"])
-                except (KeyError, TypeError, ValueError):
+                except KeyError, TypeError, ValueError:
                     continue
 
                 watts_values.append(power_mw / 1000.0)

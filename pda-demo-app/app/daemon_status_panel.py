@@ -16,7 +16,11 @@ import gi
 gi.require_version("Gtk", "4.0")
 from gi.repository import Gtk
 
-from app.module_state import get_status_bar_text, get_module_detail_lines, register_state_change_callback
+from app.module_state import (
+    get_status_bar_text,
+    get_module_detail_lines,
+    register_state_change_callback,
+)
 
 
 def create_left_aligned_label(text):
@@ -79,7 +83,9 @@ def create_daemon_status_panel():
     status_revealer.set_reveal_child(False)
     status_revealer.set_child(status_details)
 
-    status_bar.connect("clicked", on_status_bar_clicked, status_revealer, status_details)
+    status_bar.connect(
+        "clicked", on_status_bar_clicked, status_revealer, status_details
+    )
 
     panel.append(status_bar)
     panel.append(status_revealer)
