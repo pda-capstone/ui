@@ -6,3 +6,4 @@ Icon=pda-demo-app
 Exec=pda-demo-app
 Terminal=false
 Categories=Utility
+X-Purism-FormFactor=Workstation;Mobile;
