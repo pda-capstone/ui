@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
-# demo.py
+# __init__.py
 # Creates the main GTK demo application window for PDA UI testing.
 # Owner: Jiesui
-# Last updated: July 2026
+# Last updated: August 2026
 
 """
 PDA GTK Demo
