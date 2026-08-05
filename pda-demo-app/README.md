@@ -290,6 +290,82 @@ in `pyproject.toml`.
 The command name is `pda-demo-app`, while `app:main` refers to the Python
 package and function used internally as the application entry point.
 
+## Fake HotSwap daemon testing
+
+To run the fake daemon and demo together on a private bus using the new
+`pda-demo-app` layout:
+
+```bash
+cd ../pda-demo-app
+uv venv --system-site-packages --clear
+address=$(dbus-daemon --session --print-address --fork)
+export DBUS_SYSTEM_BUS_ADDRESS="$address"
+python3 app/fake_hotswapd.py &
+uv run pda-demo-app
+```
+
+If the virtual environment is already created and working, you can skip the
+`uv venv` step.
+
+Use the control helper to simulate attachment, detachment, or power changes:
+
+```bash
+python3 fake_hotswapd_ctl.py status
+python3 fake_hotswapd_ctl.py attach
+python3 fake_hotswapd_ctl.py detach
+python3 fake_hotswapd_ctl.py power 300
+```
+
+If you need a custom control socket path, set:
+
+```bash
+export FAKE_HOTSWAPD_CONTROL_SOCKET=/tmp/my-fake-hotswapd.sock
+```
+
+## Real-world hotswap daemon testing
+
+For end-to-end validation of the real hot-swap daemon, use the target device
+with a real USB storage device attached. The automated tests in the daemon
+repository are hardware-free and do not prove attach/detach behavior on real
+hardware.
+
+From the `pda-demo-app` directory, switch to the daemon repository and install
+and start the service on the target device:
+
+```bash
+cd ../../daemon-capstone-submit
+sudo make install
+sudo systemctl daemon-reload
+sudo systemctl restart hotswapd.service
+sudo systemctl status hotswapd.service
+```
+
+Watch the daemon logs while you test:
+
+```bash
+journalctl -u hotswapd.service -f
+```
+
+Then perform a simple physical test:
+
+1. Plug in a USB flash drive or USB-C storage device.
+2. Wait a few seconds and confirm the device is detected by the system and the
+   daemon.
+3. Try the CLI helpers:
+
+   ```bash
+   hsctl list
+   hsctl power
+   ```
+
+4. Unmount the device safely if needed and unplug it.
+5. Confirm the daemon logs show detach or cleanup activity.
+6. Repeat the attach/detach cycle at least three times to check for stability.
+
+For a stronger real-world check, repeat the same sequence with a second device
+or with a sudden unplug after a write operation to observe how the daemon behaves
+under surprise removal.
+
 ## Manual Test Checklist
 
 ### Main UI
