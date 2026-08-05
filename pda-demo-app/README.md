@@ -262,7 +262,7 @@ One development setup is:
 ```bash
 uv venv --system-site-packages
 uv pip install -e .
-uv run --no-sync app
+uv run --no-sync pda-demo-app
 ```
 
 ## Run
@@ -270,16 +270,25 @@ uv run --no-sync app
 From the `pda-demo-app` directory, development environments with `uv` can run:
 
 ```bash
-uv run app
+uv run pda-demo-app
 ```
 
 After the project package is installed, use its console entry point:
 
 ```bash
-app
+pda-demo-app
 ```
 
-The application entry point is configured as `app:main` in `pyproject.toml`.
+The console entry point is configured as:
+
+```toml
+pda-demo-app = "app:main"
+```
+
+in `pyproject.toml`.
+
+The command name is `pda-demo-app`, while `app:main` refers to the Python
+package and function used internally as the application entry point.
 
 ## Manual Test Checklist
 
