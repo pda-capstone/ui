@@ -16,13 +16,16 @@ import gi
 
 # Require GTK 4 before importing Gtk from gi.repository.
 gi.require_version("Gtk", "4.0")
-from gi.repository import Gtk, Gio
+gi.require_version("Adw", "1")
+from gi.repository import Gtk, Gio, Adw
 
 from app.daemon_status_panel import create_daemon_status_panel
 from app.click_test_panel import create_click_test_panel
 from app.diagnostics_overlay import create_diagnostics_overlay
 from app.power_backend import PowerBackend
 from app.module_state import connect_to_daemon
+
+Adw.init()
 
 
 def activate(app, power_backend):
@@ -83,7 +86,7 @@ def main():
     """
     Application entry point.
     """
-    app = Gtk.Application(
+    app = Adw.Application(
         # Reverse-domain application IDs identify GTK apps in session tools.
         application_id="edu.pda.gtkdemo",
         flags=Gio.ApplicationFlags.DEFAULT_FLAGS,
