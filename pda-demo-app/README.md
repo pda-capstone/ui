@@ -241,7 +241,7 @@ pda-demo-app/benchmark_idle.csv
 ### postmarketOS / Alpine Linux
 
 ```bash
-doas apk add python3 py3-gobject3 gtk4.0 py3-cairo git
+doas apk add python3 py3-gobject3 gtk4.0 py3-cairo git libadwaita
 ```
 
 The final packaged application should also include the project package, the

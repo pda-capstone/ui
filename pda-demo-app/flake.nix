@@ -23,6 +23,7 @@
             pkgs.python3
             pkgs.uv
             pkgs.gtk4
+            pkgs.libadwaita
             pkgs.python314Packages.pygobject3
             pkgs.python314Packages.pycairo
           ];
