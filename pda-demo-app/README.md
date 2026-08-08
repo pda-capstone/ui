@@ -1,9 +1,13 @@
-# UI - Wayland Touch Stack
+# PDA Demo App
 
 Touch-capable GTK4 reference interface for Pocket Distro Alpha. The demo is
 designed for a portrait-oriented display and is used to validate Wayland input,
 GTK responsiveness, daemon-status presentation, CPU governor settings, and
 power benchmark integration.
+
+![Screenshot](./screenshots/screenshot1.png)
+
+*Screenshot of the demo app running on raspberry pi 5*
 
 ## Goals
 
