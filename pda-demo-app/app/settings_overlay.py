@@ -7,11 +7,10 @@
 Power mode settings overlay for the PDA GTK demo.
 
 The overlay saves the selected power mode to the PDA settings JSON
-file and then tries to apply the corresponding CPUfreq governor. Saving
-remains available on development systems where CPUfreq is unavailable.
+file and then tries to apply the corresponding system power profile.
 
 Power-mode requests are sent through PowerBackend so the GTK layer does
-not access CPUfreq directly.
+not communicate with tuned-ppd directly.
 """
 
 import json
@@ -69,11 +68,11 @@ def get_selected_power_mode(mode_buttons):
 
 def get_power_mode_display_text(power_mode):
     """
-    Return the shared display label and governor for one power mode.
+    Return the shared display label and profile for one power mode.
     """
     definition = get_power_mode_definition(power_mode)
 
-    return f"{definition.label} ({definition.governor})"
+    return f"{definition.label} ({definition.profile})"
 
 
 def update_loaded_mode_status(
@@ -82,21 +81,22 @@ def update_loaded_mode_status(
     power_mode,
 ):
     """
-    Display the configured mode and currently active governor.
+    Display the configured mode and currently active power profile.
     """
     display_text = get_power_mode_display_text(power_mode)
 
     try:
-        active_governor = power_backend.get_current_governor()
+        active_profile = power_backend.get_active_profile()
     except PowerBackendError as error:
         status_label.set_text(
             f"Configured mode: {display_text}\n"
-            f"Active governor unavailable: {error}"
+            f"Active profile unavailable: {error}"
         )
         return
 
     status_label.set_text(
-        f"Configured mode: {display_text}\nActive governor: {active_governor}"
+        f"Configured mode: {display_text}\n"
+        f"Active profile: {active_profile}"
     )
 
 
@@ -138,7 +138,7 @@ def apply_saved_power_mode(
     display_text = get_power_mode_display_text(power_mode)
 
     try:
-        active_governor = power_backend.apply_power_mode(power_mode)
+        active_profile = power_backend.apply_power_mode(power_mode)
     except PowerBackendError as error:
         status_label.set_text(
             f"Configured mode: {display_text}\n"
@@ -149,7 +149,7 @@ def apply_saved_power_mode(
 
     status_label.set_text(
         f"Applied saved mode: {display_text}\n"
-        f"Active governor: {active_governor}"
+        f"Active profile: {active_profile}"
     )
 
 
@@ -206,19 +206,25 @@ def on_settings_child_revealed(
         settings_revealer.set_can_target(False)
 
 
-def restore_previous_governor(
+def restore_previous_profile(
     power_backend,
-    previous_governor,
+    previous_profile,
 ):
     """
-    Try to restore the governor active before the operation.
+    Try to restore the power profile active before the operation.
     """
     try:
-        restored_governor = power_backend.restore_governor(previous_governor)
+        restored_profile = power_backend.restore_profile(previous_profile)
     except PowerBackendError as error:
-        return f"The previous active governor could not be restored: {error}"
+        return (
+            "The previous active profile could not be restored: "
+            f"{error}"
+        )
 
-    return f"The previous active governor was restored ({restored_governor})."
+    return (
+        "The previous active profile was restored "
+        f"({restored_profile})."
+    )
 
 
 def on_save_settings_clicked(
@@ -228,12 +234,10 @@ def on_save_settings_clicked(
     status_label,
 ):
     """
-    Save the selected power mode, then try to apply its governor.
+    Save the selected power mode, then try to apply its system profile.
 
-    Saving is independent of CPUfreq availability so the settings UI can
-    be tested on development systems such as macOS. On supported Linux
-    systems, the selected governor is applied after the JSON write
-    succeeds.
+    Saving remains independent of system power-profile availability so the
+    settings UI can still be tested on development systems such as macOS.
     """
     if power_backend.is_benchmark_running():
         status_label.set_text(
@@ -241,6 +245,7 @@ def on_save_settings_clicked(
             "Wait for it to finish before changing the power mode."
         )
         return
+
     power_mode = get_selected_power_mode(mode_buttons)
     display_text = get_power_mode_display_text(power_mode)
 
@@ -249,29 +254,29 @@ def on_save_settings_clicked(
     except (OSError, ValueError) as error:
         status_label.set_text(
             "Could not save the selected power mode.\n"
-            "No governor changes were made.\n\n"
+            "No power profile changes were made.\n\n"
             f"{error}"
         )
         return
 
     try:
-        previous_governor = power_backend.get_current_governor()
+        previous_profile = power_backend.get_active_profile()
     except PowerBackendError as error:
         status_label.set_text(
             f"Saved mode: {display_text}\n"
             f"Config: {settings_path}\n\n"
             "The mode could not be applied on this system because "
-            "the active governor is unavailable:\n"
+            "the active profile is unavailable:\n"
             f"{error}"
         )
         return
 
     try:
-        active_governor = power_backend.apply_power_mode(power_mode)
+        active_profile = power_backend.apply_power_mode(power_mode)
     except PowerBackendError as error:
-        rollback_status = restore_previous_governor(
+        rollback_status = restore_previous_profile(
             power_backend,
-            previous_governor,
+            previous_profile,
         )
         status_label.set_text(
             f"Saved mode: {display_text}\n"
@@ -284,10 +289,9 @@ def on_save_settings_clicked(
 
     status_label.set_text(
         f"Saved and applied: {display_text}\n"
-        f"Active governor: {active_governor}\n"
+        f"Active profile: {active_profile}\n"
         f"Config: {settings_path}"
     )
-
 
 def create_settings_header(settings_revealer):
     """
@@ -332,7 +336,7 @@ def create_power_mode_buttons():
 
     for definition in POWER_MODE_DEFINITIONS:
         mode_button = Gtk.CheckButton(
-            label=(f"{definition.label} ({definition.governor})"),
+            label=f"{definition.label} ({definition.profile})",
         )
         mode_button.set_halign(Gtk.Align.START)
 
@@ -388,8 +392,8 @@ def create_settings_content(power_backend):
 
     description_label = create_left_aligned_label(
         "Select a power mode to save in the PDA settings JSON file. "
-        "On supported Linux systems, the corresponding CPUfreq "
-        "governor is also applied."
+        "On supported Linux systems, the corresponding system power "
+        "profile is also applied."
     )
 
     mode_button_box, mode_buttons = create_power_mode_buttons()

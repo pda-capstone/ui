@@ -1,14 +1,14 @@
 # power_modes.py
 # Defines shared power mode metadata for the PDA GTK demo.
 # Owner: Jiesui
-# Last updated: July 2026
+# Last updated: August 2026
 
 """
 Shared application-level power mode definitions.
 
-This module is independent of GTK and CPUfreq access so settings storage,
-the UI, and the power backend can use one canonical set of mode identifiers,
-labels, and governor mappings.
+Settings use the system power-profile mapping, while the existing benchmark
+path continues to use CPUfreq governor mappings during the transition to
+tuned-ppd.
 """
 
 from dataclasses import dataclass
@@ -22,6 +22,7 @@ class PowerModeDefinition:
 
     identifier: str
     label: str
+    profile: str
     governor: str
 
 
@@ -31,16 +32,19 @@ POWER_MODE_DEFINITIONS = (
     PowerModeDefinition(
         identifier="default",
         label="Default",
+        profile="balanced",
         governor="schedutil",
     ),
     PowerModeDefinition(
         identifier="low_power",
         label="Low Power",
+        profile="power-saver",
         governor="powersave",
     ),
     PowerModeDefinition(
         identifier="performance",
         label="Performance",
+        profile="performance",
         governor="performance",
     ),
 )
