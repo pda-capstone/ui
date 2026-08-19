@@ -293,6 +293,7 @@ def on_save_settings_clicked(
         f"Config: {settings_path}"
     )
 
+
 def create_settings_header(settings_revealer):
     """
     Create the settings title row and close button.
