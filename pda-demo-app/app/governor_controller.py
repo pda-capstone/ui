@@ -37,7 +37,7 @@ class GovernorController:
     Provide validated access to the optional CPUfreq governor implementation.
     """
 
-    def __init__(self, controller=None, module_name="governors"):
+    def __init__(self, controller=None, module_name="app.governors"):
         """
         Initialize with an optional low-level governor implementation.
 
