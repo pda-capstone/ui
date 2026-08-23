@@ -15,6 +15,7 @@ import gi
 gi.require_version("Gtk", "4.0")
 from gi.repository import Gtk
 
+from app.cpu_logger_panel import create_cpu_logger_panel
 from app.power_benchmark_panel import create_power_benchmark_panel
 from app.settings_overlay import create_settings_controls
 
@@ -95,14 +96,15 @@ def create_diagnostics_content(power_backend):
     content_box.set_hexpand(True)
 
     intro_label = create_left_aligned_label(
-        "Configure power measurement tools for the PDA demo. "
-        "The benchmark uses INA219 samples when the power script is "
-        "available and simulated development data otherwise."
+        "Run diagnostic tools for the PDA demo, including power "
+        "benchmark configuration and standalone CPU monitoring."
     )
 
     content_box.append(intro_label)
     content_box.append(Gtk.Separator())
     content_box.append(create_power_benchmark_panel(power_backend))
+    content_box.append(Gtk.Separator())
+    content_box.append(create_cpu_logger_panel())
 
     scrolled_window = Gtk.ScrolledWindow()
     scrolled_window.set_policy(
