@@ -2,7 +2,7 @@
 
 Touch-capable GTK4 reference interface for Pocket Distro Alpha. The demo is
 designed for a portrait-oriented display and is used to validate Wayland input,
-GTK responsiveness, daemon-status presentation, CPU governor settings,
+GTK responsiveness, daemon-status presentation, power mode settings,
 standalone CPU monitoring, and power benchmark integration.
 
 ![Screenshot](./screenshots/screenshot1.png)
@@ -14,10 +14,9 @@ _Screenshot of the demo app running on Raspberry Pi 5_
 - Run a GTK4 application under the PDA Wayland environment.
 - Verify touch and click input with visible feedback.
 - Provide a lightweight FPS indicator for responsiveness checks.
-- Display expandable placeholder module status before D-Bus integration is
-  complete.
-- Save and apply application-level CPU power modes when CPUfreq support is
-  available.
+- Display expandable module status.
+- Save and apply application-level power modes through the system PowerProfiles
+  interface when available.
 - Run INA219 power measurements asynchronously without blocking the GTK main
   loop.
 - Provide clearly labeled simulated benchmark data on development systems.
@@ -33,7 +32,8 @@ _Screenshot of the demo app running on Raspberry Pi 5_
 - Input stack: libinput
 - Planned daemon communication: D-Bus
 - Persistent configuration: JSON in the user's XDG configuration directory
-- Power control: Linux CPUfreq governors through an optional `governors` module
+- Power mode control: PowerProfiles D-Bus interface provided by `tuned-ppd`
+- Benchmark governor control: Linux CPUfreq through the `governors` module
 - Power measurement: INA219 sampling script or simulated development data
 - CPU monitoring: Linux sysfs interfaces and `psutil`
 
@@ -41,7 +41,7 @@ _Screenshot of the demo app running on Raspberry Pi 5_
 
 The reference application currently includes:
 
-- an expandable daemon/module status panel using placeholder state
+- an expandable daemon/module status panel
 - a large touch/click test button with a click counter
 - ripple and dot click-feedback animations
 - a lightweight FPS label based on GTK frame-clock ticks
@@ -66,7 +66,9 @@ app/
 ├── cpu_logger.py
 ├── cpu_logger_panel.py
 ├── power_modes.py
+├── governors.py
 ├── governor_controller.py
+├── power_profile_controller.py
 ├── power_benchmark_runner.py
 ├── power_benchmark_panel.py
 ├── power_backend.py
@@ -90,10 +92,14 @@ app/
   and records samples to CSV on a background thread.
 - `cpu_logger_panel.py` provides standalone CPU monitoring and logging controls
   in the diagnostics overlay.
-- `power_modes.py` defines the shared application power modes and governor
-  mappings.
-- `governor_controller.py` loads the optional governor implementation lazily,
-  validates available governors, applies a governor, and verifies the result.
+- `power_modes.py` defines the shared application power modes, PowerProfiles
+  mappings, and benchmark governor mappings.
+- `governors.py` provides the low-level Linux CPUfreq governor implementation
+  currently used by the benchmark path.
+- `governor_controller.py` loads the governor implementation lazily, validates
+  available governors, applies a governor, and verifies the result.
+- `power_profile_controller.py` reads, applies, and verifies system power
+  profiles through the PowerProfiles D-Bus interface provided by `tuned-ppd`.
 - `power_benchmark_runner.py` runs one benchmark at a time on a background
   thread, writes CSV output, and restores the previous governor.
 - `power_benchmark_panel.py` validates benchmark form values and submits a
@@ -113,14 +119,16 @@ without changing governors, profiles, workloads, or other system settings.
 
 ## Power Architecture
 
-The GTK power layer uses one `PowerBackend` instance. Internally, it delegates:
+The GTK power layer uses one `PowerBackend` instance. The current settings and
+benchmark paths use different low-level mechanisms:
 
-- CPUfreq operations to `GovernorController`
-- benchmark lifecycle and background work to `PowerBenchmarkRunner`
+- Power Mode Settings use `PowerProfileController` and the system PowerProfiles
+  D-Bus interface provided by `tuned-ppd`.
+- Power Benchmark continues to use `GovernorController` and the Linux CPUfreq
+  governor implementation.
 
-This keeps GTK widgets independent from Linux CPUfreq and subprocess details.
-It also ensures that power settings and benchmarks share the same governor
-controller and benchmark-running state.
+This keeps GTK widgets independent from D-Bus, Linux CPUfreq, and subprocess
+details while allowing the settings UI to avoid direct privileged sysfs writes.
 
 While a benchmark is active, the settings panel prevents the user from changing
 the power mode. The benchmark runner records the original governor and attempts
@@ -134,14 +142,17 @@ monitoring and does not use `PowerBackend` or `GovernorController`.
 The settings button opens a full-screen power mode panel with these shared
 application-level modes:
 
-| Mode ID       | Display name | Governor      |
-| ------------- | ------------ | ------------- |
-| `default`     | Default      | `schedutil`   |
-| `low_power`   | Low Power    | `powersave`   |
-| `performance` | Performance  | `performance` |
+| Mode ID       | Display name | Power profile | Benchmark governor |
+| ------------- | ------------ | ------------- | ------------------ |
+| `default`     | Default      | `balanced`    | `schedutil`        |
+| `low_power`   | Low Power    | `power-saver` | `powersave`        |
+| `performance` | Performance  | `performance` | `performance`      |
+
+Power Mode Settings use the **Power profile** mapping. The governor mapping is
+retained for the existing benchmark implementation.
 
 Selecting **Save and Apply** first saves the selected mode and then attempts to
-apply the mapped governor.
+apply the mapped system power profile.
 
 Settings are stored in:
 
@@ -165,14 +176,75 @@ Example configuration:
 ```
 
 The saved mode is loaded and applied when the settings controls are created.
-If CPUfreq support or the required permissions are unavailable, the application
-continues to run and reports the error in the settings panel. Saving the JSON
-configuration remains available on development systems such as macOS.
+If the PowerProfiles service is unavailable, the application continues to run
+and reports the error in the settings panel. Saving the JSON configuration
+remains available on development systems such as macOS.
+
+### Power Profile Integration
+
+The target Raspberry Pi 5 postmarketOS environment provides `tuned` and
+`tuned-ppd`.
+
+`tuned-ppd` exposes the PowerProfiles-compatible system D-Bus interface used by
+`PowerProfileController`.
+
+Hardware validation has confirmed that:
+
+- `power-saver`, `balanced`, and `performance` are exposed by tuned-ppd.
+- available and active profiles can be read successfully.
+- profiles can be changed from the local Phosh user session without running the
+  GTK application as root.
+- the same profile change is rejected from an SSH session as unauthorized.
+- direct CPUfreq governor writes require elevated privileges.
+
+The standard tuned-ppd configuration observed on the target system currently
+maps:
+
+```text
+power-saver -> powersave
+balanced    -> balanced
+performance -> throughput-performance
+```
+
+These built-in TuneD profiles may modify more than only the CPU governor.
+
+The proposed next step is to validate three PDA-specific TuneD profiles that
+only configure the intended CPU governor:
+
+```text
+pda-balanced    -> schedutil
+pda-powersave   -> powersave
+pda-performance -> performance
+```
+
+The intended tuned-ppd mapping is:
+
+```text
+balanced    -> pda-balanced
+power-saver -> pda-powersave
+performance -> pda-performance
+```
+
+The intended final behavior is:
+
+```text
+Default      -> balanced    -> pda-balanced    -> schedutil
+Low Power    -> power-saver -> pda-powersave   -> powersave
+Performance  -> performance -> pda-performance -> performance
+```
+
+The PDA-specific TuneD profiles and `ppd.conf` mappings still require final
+hardware validation and are not yet installed automatically by the UI
+application.
+
+If this design is retained, the profiles and mappings should eventually be
+installed through the postmarketOS/OS package configuration rather than being
+created manually by the GTK application.
 
 ### Governor Integration Requirements
 
-The optional low-level Python module is named `governors` by default. It must
-provide these functions:
+The direct governor implementation is currently retained for the benchmark
+path. The local module is `app.governors` and provides:
 
 ```python
 available_governors()
@@ -180,9 +252,21 @@ get_current_governor()
 set_governor(governor)
 ```
 
-Governor changes normally require Linux CPUfreq support and sufficient system
-permissions. The UI does not attempt to bypass operating-system permission
-requirements.
+The Raspberry Pi 5 was confirmed to expose:
+
+```text
+conservative
+userspace
+powersave
+performance
+schedutil
+```
+
+Direct governor reads work as a normal user, but governor changes require
+elevated privileges.
+
+Power Mode Settings therefore use `tuned-ppd` instead of writing CPUfreq sysfs
+files directly. The benchmark path has not yet been migrated to power profiles.
 
 ## Diagnostics
 
@@ -358,9 +442,13 @@ behavior must still be validated on the Raspberry Pi target.
 doas apk add python3 py3-gobject3 gtk4.0 py3-cairo py3-psutil git libadwaita
 ```
 
+Power Mode Settings on the target system additionally depend on a working
+PowerProfiles D-Bus service. The Raspberry Pi 5 postmarketOS environment used
+for hardware validation provides this through `tuned` and `tuned-ppd`.
+
 The final packaged application should also include the project package, the
-optional governor implementation, and the power sampling script when live power
-features are required.
+governor implementation used by the benchmark path, and the power sampling
+script when live power features are required.
 
 CPU logging requires `psutil` for CPU utilization and frequency information.
 Governor and temperature monitoring additionally depend on Linux sysfs
@@ -539,10 +627,30 @@ under surprise removal.
 
 1. Open the power mode settings overlay.
 2. Select a mode and press **Save and Apply**.
-3. Close and reopen the panel and confirm the saved selection is restored.
-4. Restart the application and confirm it attempts to apply the saved mode.
-5. Confirm governor or permission failures are shown without crashing the app.
-6. While a benchmark is running, confirm power mode changes are blocked.
+3. Confirm the selected mode is saved even if the PowerProfiles service is
+   unavailable.
+4. Close and reopen the panel and confirm the saved selection is restored.
+5. Restart the application and confirm it attempts to apply the saved mode.
+6. On systems without tuned-ppd, confirm the unavailable-profile error is shown
+   without crashing the app.
+7. While a benchmark is running, confirm power mode changes are blocked.
+8. On the Raspberry Pi 5, run the application from the local Phosh session and
+   confirm `balanced`, `power-saver`, and `performance` can be selected without
+   running the application as root.
+9. When the proposed PDA-specific TuneD profiles are installed, verify:
+
+    ```bash
+    tuned-adm active
+    cat /sys/devices/system/cpu/cpu0/cpufreq/scaling_governor
+    ```
+
+    The intended final mapping is:
+
+    ```text
+    Default      -> pda-balanced     -> schedutil
+    Low Power    -> pda-powersave    -> powersave
+    Performance  -> pda-performance  -> performance
+    ```
 
 ## Performance Notes
 
@@ -557,8 +665,6 @@ profiling.
 
 ## Known Limitations
 
-- The daemon/module panel still uses placeholder data and is not yet connected
-  to the hot-swap daemon through D-Bus.
 - VM mouse input is only a substitute for physical touchscreen testing.
 - Portrait display rotation and touch-coordinate alignment require final target
   hardware validation.
@@ -567,8 +673,12 @@ profiling.
 - Simulated benchmark output is development-only and is not measurement data.
 - Live INA219 execution depends on the external sampling script, hardware
   connection, and permissions.
-- CPU governor control depends on Linux CPUfreq support, the external
+- The benchmark governor path depends on Linux CPUfreq support, the
   `governors` implementation, and permissions.
+- Power Mode Settings depend on the PowerProfiles D-Bus interface provided by
+  `tuned-ppd` on the target system.
+- The proposed PDA-specific TuneD profiles and `ppd.conf` mappings still require
+  final Raspberry Pi 5 validation and reproducible OS/package installation.
 - CPU governor and temperature monitoring depend on Linux sysfs interfaces and
   may be unavailable on macOS or virtual machines.
 - CPU frequency values reported by development systems or virtual machines may
